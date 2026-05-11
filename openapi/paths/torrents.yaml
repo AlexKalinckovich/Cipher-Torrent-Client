@@ -46,4 +46,4 @@ item:
             schema:
               $ref: '../schemas/torrent.yaml#/Torrent'
       '404':
-        $ref: '../schemas/common.yaml#/ErrorResponse'
+        $ref: '../schemas/common.yaml#/ApiError'

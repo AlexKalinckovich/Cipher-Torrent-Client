@@ -10,4 +10,4 @@ profile:
             schema:
               $ref: '../schemas/user.yaml#/UserFull'
       '401':
-        $ref: '../schemas/common.yaml#/ErrorResponse'
+        $ref: '../schemas/common.yaml#/ApiError'

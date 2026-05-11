@@ -31,3 +31,5 @@ export * from './Torrent/torrentSignedEvent';
 export * from './User/user';
 export * from './User/userFull';
 export * from './User/userStats';
+
+export * from './Common/errorResponse.ts'
