@@ -1,0 +1,48 @@
+openapi: 3.0.3
+info:
+  title: Cipher Torrent Client API
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080/api/v1
+paths:
+  /auth/register:
+    $ref: './paths/auth.yaml#/register'
+  /auth/login:
+    $ref: './paths/auth.yaml#/login'
+  /auth/refresh:
+    $ref: './paths/auth.yaml#/refresh'
+  /torrents:
+    $ref: './paths/torrents.yaml#/collection'
+  /torrents/{infoHash}:
+    $ref: './paths/torrents.yaml#/item'
+  /torrents/{infoHash}/peers:
+    $ref: './paths/peers.yaml#/collection'
+  /torrents/{infoHash}/sign:
+    $ref: './paths/signatures.yaml#/sign'
+  /torrents/{infoHash}/signatures:
+    $ref: './paths/signatures.yaml#/collection'
+  /users/me:
+    $ref: './paths/users.yaml#/profile'
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    PacketLog:
+      $ref: './schemas/packet-log.yaml#/PacketLog'
+    ReputationReceipt:
+      $ref: './schemas/reputation.yaml#/ReputationReceipt'
+    TorrentProgressEvent:
+      $ref: './schemas/ws-events.yaml#/TorrentProgressEvent'
+    PeerConnectedEvent:
+      $ref: './schemas/ws-events.yaml#/PeerConnectedEvent'
+    PacketEvent:
+      $ref: './schemas/ws-events.yaml#/PacketEvent'
+    ReputationUpdateEvent:
+      $ref: './schemas/ws-events.yaml#/ReputationUpdateEvent'
+    TorrentSignedEvent:
+      $ref: './schemas/ws-events.yaml#/TorrentSignedEvent'
+security:
+  - BearerAuth: []

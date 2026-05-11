@@ -1,0 +1,39 @@
+sign:
+  post:
+    operationId: signTorrent
+    summary: Подписать торрент своим ключом
+    parameters:
+      - name: infoHash
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      '201':
+        description: Подпись создана
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/signature.yaml#/SignatureCreateResponse'
+      '404':
+        $ref: '../schemas/common.yaml#/ErrorResponse'
+
+collection:
+  get:
+    operationId: getTorrentSignatures
+    summary: Список подписей для торрента
+    parameters:
+      - name: infoHash
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Массив подписей
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '../schemas/signature.yaml#/TorrentSignature'

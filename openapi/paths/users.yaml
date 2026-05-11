@@ -1,0 +1,13 @@
+profile:
+  get:
+    operationId: getMyProfile
+    summary: Профиль текущего пользователя со статистикой
+    responses:
+      '200':
+        description: Профиль пользователя
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/user.yaml#/UserFull'
+      '401':
+        $ref: '../schemas/common.yaml#/ErrorResponse'

@@ -1,0 +1,62 @@
+register:
+  post:
+    operationId: registerUser
+    summary: Регистрация нового пользователя
+    security: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/auth.yaml#/AuthRegisterRequest'
+    responses:
+      '201':
+        description: Успешная регистрация
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/auth.yaml#/AuthResponse'
+      '400':
+        $ref: '../schemas/common.yaml#/ErrorResponse'
+
+login:
+  post:
+    operationId: loginUser
+    summary: Вход в систему
+    security: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/auth.yaml#/AuthLoginRequest'
+    responses:
+      '200':
+        description: Успешный вход
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/auth.yaml#/AuthResponse'
+      '401':
+        $ref: '../schemas/common.yaml#/ErrorResponse'
+
+refresh:
+  post:
+    operationId: refreshToken
+    summary: Обновление токена доступа
+    security: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/auth.yaml#/AuthRefreshRequest'
+    responses:
+      '200':
+        description: Новые токены
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/auth.yaml#/AuthResponse'
+      '401':
+        $ref: '../schemas/common.yaml#/ErrorResponse'

@@ -1,0 +1,24 @@
+ReputationReceipt:
+  type: object
+  required:
+    - from_peer_id
+    - to_peer_id
+    - piece_index
+    - byte_count
+    - signature
+    - timestamp
+  properties:
+    from_peer_id:
+      type: string
+    to_peer_id:
+      type: string
+    piece_index:
+      type: integer
+    byte_count:
+      type: integer
+    signature:
+      type: string
+      description: Ed25519 подпись данных квитанции
+    timestamp:
+      type: string
+      format: date-time

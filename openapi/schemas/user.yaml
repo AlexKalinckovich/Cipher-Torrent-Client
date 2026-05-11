@@ -1,0 +1,59 @@
+User:
+  type: object
+  required:
+    - id
+    - email
+    - public_key
+    - nickname
+    - created_at
+  properties:
+    id:
+      type: integer
+      format: int64
+    email:
+      type: string
+      format: email
+    public_key:
+      type: string
+    nickname:
+      type: string
+    created_at:
+      type: string
+      format: date-time
+
+UserStats:
+  type: object
+  required:
+    - total_uploaded_bytes
+    - total_downloaded_bytes
+    - reputation_score
+    - signed_torrents_count
+    - active_torrents_count
+    - peers_trusted_count
+  properties:
+    total_uploaded_bytes:
+      type: integer
+      format: int64
+    total_downloaded_bytes:
+      type: integer
+      format: int64
+    reputation_score:
+      type: number
+      format: float
+    signed_torrents_count:
+      type: integer
+    active_torrents_count:
+      type: integer
+    peers_trusted_count:
+      type: integer
+
+UserFull:
+  allOf:
+    - $ref: '#/User'
+    - type: object
+      properties:
+        stats:
+          $ref: '#/UserStats'
+        role:
+          type: string
+          enum: [user, admin]

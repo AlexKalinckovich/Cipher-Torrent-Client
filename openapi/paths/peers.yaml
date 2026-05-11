@@ -1,0 +1,21 @@
+collection:
+  get:
+    operationId: getTorrentPeers
+    summary: Список пиров для указанного торрента
+    parameters:
+      - name: infoHash
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Массив пиров
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '../schemas/peer.yaml#/Peer'
+      '404':
+        $ref: '../schemas/common.yaml#/ErrorResponse'

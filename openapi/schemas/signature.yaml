@@ -1,0 +1,34 @@
+TorrentSignature:
+  type: object
+  required:
+    - signer_user_id
+    - signer_public_key
+    - signature_bytes
+    - is_valid
+    - signed_at
+  properties:
+    signer_user_id:
+      type: integer
+      format: int64
+    signer_public_key:
+      type: string
+    signature_bytes:
+      type: string
+    is_valid:
+      type: boolean
+    signed_at:
+      type: string
+      format: date-time
+
+SignatureCreateResponse:
+  type: object
+  required:
+    - signature_id
+    - signed_at
+  properties:
+    signature_id:
+      type: integer
+      format: int64
+    signed_at:
+      type: string
+      format: date-time

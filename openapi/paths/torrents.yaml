@@ -1,0 +1,49 @@
+collection:
+  get:
+    operationId: getTorrents
+    summary: Список всех торрентов пользователя
+    responses:
+      '200':
+        description: Массив торрентов
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '../schemas/torrent.yaml#/Torrent'
+  post:
+    operationId: addTorrent
+    summary: Добавить торрент по magnet-ссылке
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/torrent.yaml#/TorrentAddRequest'
+    responses:
+      '202':
+        description: Запрос на добавление принят
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/torrent.yaml#/TorrentAddResponse'
+
+item:
+  get:
+    operationId: getTorrent
+    summary: Детальная информация о торренте
+    parameters:
+      - name: infoHash
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Объект торрента
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/torrent.yaml#/Torrent'
+      '404':
+        $ref: '../schemas/common.yaml#/ErrorResponse'

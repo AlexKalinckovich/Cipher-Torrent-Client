@@ -1,0 +1,46 @@
+Peer:
+  type: object
+  required:
+    - peer_id
+    - ip
+    - port
+    - client_name
+    - supports_ut_reputation
+  properties:
+    peer_id:
+      type: string
+    ip:
+      type: string
+    port:
+      type: integer
+      format: int32
+    client_name:
+      type: string
+    supports_ut_reputation:
+      type: boolean
+    reputation_score:
+      type: number
+      format: float
+    last_seen:
+      type: string
+      format: date-time
+    connected_since:
+      type: string
+      format: date-time
+    download_speed_bps:
+      type: integer
+      format: int64
+    upload_speed_bps:
+      type: integer
+      format: int64
+    flags:
+      type: object
+      properties:
+        encryption:
+          type: boolean
+        utp:
+          type: boolean
+        dht:
+          type: boolean
+        pex:
+          type: boolean

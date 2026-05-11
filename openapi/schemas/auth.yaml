@@ -1,0 +1,48 @@
+AuthRegisterRequest:
+  type: object
+  required:
+    - email
+    - password
+  properties:
+    email:
+      type: string
+      format: email
+    password:
+      type: string
+      format: password
+      minLength: 8
+
+AuthLoginRequest:
+  type: object
+  required:
+    - email
+    - password
+  properties:
+    email:
+      type: string
+      format: email
+    password:
+      type: string
+      format: password
+
+AuthRefreshRequest:
+  type: object
+  required:
+    - refresh_token
+  properties:
+    refresh_token:
+      type: string
+
+AuthResponse:
+  type: object
+  required:
+    - access_token
+    - refresh_token
+    - user
+  properties:
+    access_token:
+      type: string
+    refresh_token:
+      type: string
+    user:
+      $ref: './user.yaml#/User'

@@ -1,0 +1,79 @@
+Torrent:
+  type: object
+  required:
+    - id
+    - info_hash
+    - name
+    - size_bytes
+    - status
+    - added_at
+  properties:
+    id:
+      type: integer
+      format: int64
+    info_hash:
+      type: string
+    name:
+      type: string
+    size_bytes:
+      type: integer
+      format: int64
+    status:
+      type: string
+      enum: [downloading, seeding, paused, error]
+    progress:
+      type: number
+      format: float
+    download_speed_bps:
+      type: integer
+      format: int64
+    upload_speed_bps:
+      type: integer
+      format: int64
+    added_at:
+      type: string
+      format: date-time
+    piece_length:
+      type: integer
+      format: int64
+    files:
+      type: array
+      items:
+        $ref: '#/TorrentFile'
+    signatures_count:
+      type: integer
+    is_signed_by_me:
+      type: boolean
+    peers_count:
+      type: integer
+
+TorrentFile:
+  type: object
+  required:
+    - path
+    - size_bytes
+  properties:
+    path:
+      type: string
+    size_bytes:
+      type: integer
+      format: int64
+
+TorrentAddRequest:
+  type: object
+  required:
+    - magnet_uri
+  properties:
+    magnet_uri:
+      type: string
+
+TorrentAddResponse:
+  type: object
+  required:
+    - status
+    - info_hash
+  properties:
+    status:
+      type: string
+    info_hash:
+      type: string

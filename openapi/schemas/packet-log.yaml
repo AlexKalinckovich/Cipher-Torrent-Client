@@ -1,0 +1,34 @@
+PacketLog:
+  type: object
+  required:
+    - id
+    - timestamp
+    - direction
+    - message_type
+    - raw_payload_base64
+    - has_reputation_extension
+  properties:
+    id:
+      type: integer
+      format: int64
+    timestamp:
+      type: string
+      format: date-time
+    direction:
+      type: string
+      enum: [incoming, outgoing]
+    message_type:
+      type: string
+      description: Тип сообщения BitTorrent (choke, unchoke, request, piece, ut_reputation и др.)
+    peer_ip:
+      type: string
+    raw_payload_base64:
+      type: string
+      description: Сырой пакет в base64
+    parsed_info:
+      type: string
+      description: Человекочитаемая расшифровка
+    reputation_payload:
+      $ref: './reputation.yaml#/ReputationReceipt'
+    size_bytes:
+      type: integer

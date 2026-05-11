@@ -1,0 +1,80 @@
+TorrentProgressEvent:
+  type: object
+  required:
+    - event_type
+    - info_hash
+    - progress
+    - download_speed
+    - upload_speed
+  properties:
+    event_type:
+      type: string
+      enum: [torrent:progress]
+    info_hash:
+      type: string
+    progress:
+      type: number
+    download_speed:
+      type: integer
+    upload_speed:
+      type: integer
+
+PeerConnectedEvent:
+  type: object
+  required:
+    - event_type
+    - info_hash
+    - peer
+  properties:
+    event_type:
+      type: string
+      enum: [peer:connected]
+    info_hash:
+      type: string
+    peer:
+      $ref: './peer.yaml#/Peer'
+
+PacketEvent:
+  type: object
+  required:
+    - event_type
+    - packet
+  properties:
+    event_type:
+      type: string
+      enum: [packet]
+    packet:
+      $ref: './packet-log.yaml#/PacketLog'
+
+ReputationUpdateEvent:
+  type: object
+  required:
+    - event_type
+    - from_peer_id
+    - to_peer_id
+    - new_reputation_score
+  properties:
+    event_type:
+      type: string
+      enum: [reputation:update]
+    from_peer_id:
+      type: string
+    to_peer_id:
+      type: string
+    new_reputation_score:
+      type: number
+
+TorrentSignedEvent:
+  type: object
+  required:
+    - event_type
+    - info_hash
+    - signature
+  properties:
+    event_type:
+      type: string
+      enum: [torrent:signed]
+    info_hash:
+      type: string
+    signature:
+      $ref: './signature.yaml#/TorrentSignature'
