@@ -1,19 +1,19 @@
-import React, {useMemo, useState} from 'react';
-import {Input, message, Space, Table, Typography} from 'antd';
-import type {ColumnsType} from 'antd/es/table';
+import React, { useMemo, useState, useCallback } from 'react';
+import { Input, message, Space, Table, Typography } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
 import {
     CloseCircleOutlined,
     DownloadOutlined,
     PauseCircleOutlined,
     PlayCircleOutlined,
     SearchOutlined,
-    UploadOutlined
+    UploadOutlined,
 } from '@ant-design/icons';
-import type {Torrent} from '../../types/model/models.ts';
-import {useTorrents} from '../../hooks/useTorrents.ts';
+import type { Torrent } from '../../types/model/models.ts';
+import { useTorrents } from '../../hooks/useTorrents.ts';
 import styles from './Dashboard.module.css';
-import {formatBytes} from "../../utils/DashboardScreenUtils/bytesFormatter.ts";
-import {getFilteredTorrents} from "../../utils/DashboardScreenUtils/dashboardDataFilterUtils.ts";
+import { formatBytes } from "../../utils/DashboardScreenUtils/bytesFormatter.ts";
+import { getFilteredTorrents } from "../../utils/DashboardScreenUtils/dashboardDataFilterUtils.ts";
 
 interface DashboardStats {
     total: number;
@@ -30,12 +30,56 @@ interface BadgeConfig {
     className: string;
 }
 
+interface FilterButtonProps {
+    label: string;
+    isActive: boolean;
+    onClick: () => void;
+    baseClassName: string;
+    activeClassName: string;
+}
+
+interface StatsSectionProps {
+    stats: DashboardStats;
+}
+
+interface ErrorStateProps {
+    error: Error;
+}
+
+interface FilterBarProps {
+    currentFilter: string | null;
+    searchText: string;
+    onFilterChange: (status: string | null) => void;
+    onSearchChange: (value: string) => void;
+    baseClassName: string;
+    activeClassName: string;
+}
+
+interface TorrentTableProps {
+    data: Torrent[];
+    loading: boolean;
+    columns: ColumnsType<Torrent>;
+}
+
+interface ProgressBarProps {
+    progress: number;
+}
+
+interface ActionButtonsProps {
+    onPlay: () => void;
+    onPause: () => void;
+    onRemove: () => void;
+    playClassName: string;
+    pauseClassName: string;
+    removeClassName: string;
+}
+
 const sumSize = (sum: number, t: Torrent): number => {
     return sum + t.size_bytes;
 };
 
 const countStatus = (torrents: Torrent[], status: Torrent['status']): number => {
-    return torrents.filter((t: Torrent) => t.status === status).length;
+    return torrents.filter((item: Torrent) => item.status === status).length;
 };
 
 const calculateStats = (torrents: Torrent[]): DashboardStats => {
@@ -50,36 +94,45 @@ const calculateStats = (torrents: Torrent[]): DashboardStats => {
 };
 
 const getBadgeConfig = (status: Torrent['status']): BadgeConfig => {
-    switch (status) {
-        case 'downloading':
-            return { icon: <DownloadOutlined />, text: 'Downloading', className: styles.badgeDownloading };
-        case 'seeding':
-            return { icon: <UploadOutlined />, text: 'Seeding', className: styles.badgeSeeding };
-        case 'paused':
-            return { icon: <PauseCircleOutlined />, text: 'Paused', className: styles.badgePaused };
-        case 'error':
-            return { icon: <CloseCircleOutlined />, text: 'Error', className: styles.badgeError };
-    }
+    const configMap: Record<Torrent['status'], BadgeConfig> = {
+        downloading: { icon: <DownloadOutlined />, text: 'Downloading', className: styles.badgeDownloading },
+        seeding: { icon: <UploadOutlined />, text: 'Seeding', className: styles.badgeSeeding },
+        paused: { icon: <PauseCircleOutlined />, text: 'Paused', className: styles.badgePaused },
+        error: { icon: <CloseCircleOutlined />, text: 'Error', className: styles.badgeError },
+    };
+    return configMap[status];
 };
 
-const renderStatusBadge = (status: Torrent['status']): React.ReactElement => {
+const StatusBadge: React.FC<{ status: Torrent['status'] }> = ({ status }) => {
     const config: BadgeConfig = getBadgeConfig(status);
+    const className: string = `${styles.statBadge} ${config.className}`;
     return (
-        <span className={`${styles.statBadge} ${config.className}`}>
-            {config.icon} {config.text}
-        </span>
+        <span className={className}>
+      {config.icon} {config.text}
+    </span>
     );
 };
 
-const renderProgress = (progress: number): React.ReactElement => {
-    const safeProgress = progress ?? 0;
+const ProgressBar: React.FC<ProgressBarProps> = ({ progress }) => {
+    const safeProgress: number = progress ?? 0;
+    const style: React.CSSProperties = { width: `${safeProgress}%` };
     return (
         <div className={styles.progressWrapper}>
             <div className={styles.progressBarBg}>
-                <div className={styles.progressBarFill} style={{ width: `${safeProgress}%` }} />
+                <div className={styles.progressBarFill} style={style} />
             </div>
             <span className={styles.progressText}>{safeProgress}%</span>
         </div>
+    );
+};
+
+const ActionButtons: React.FC<ActionButtonsProps> = ({ onPlay, onPause, onRemove, playClassName, pauseClassName, removeClassName }) => {
+    return (
+        <Space>
+            <PlayCircleOutlined className={playClassName} onClick={onPlay} />
+            <PauseCircleOutlined className={pauseClassName} onClick={onPause} />
+            <CloseCircleOutlined className={removeClassName} onClick={onRemove} />
+        </Space>
     );
 };
 
@@ -95,39 +148,104 @@ const handleRemoveAction = (): void => {
     void message.info('Remove action');
 };
 
-const renderActions = (): React.ReactElement => {
-    return (
-        <Space>
-            <PlayCircleOutlined style={{ cursor: 'pointer', color: '#34d399', fontSize: 18 }} onClick={handlePlayAction} />
-            <PauseCircleOutlined style={{ cursor: 'pointer', color: '#fbbf24', fontSize: 18 }} onClick={handlePauseAction} />
-            <CloseCircleOutlined style={{ cursor: 'pointer', color: '#f87171', fontSize: 18 }} onClick={handleRemoveAction} />
-        </Space>
-    );
-};
+const COLUMNS: ColumnsType<Torrent> = [
+    { title: 'Name', dataIndex: 'name', key: 'name', ellipsis: true, width: '30%' },
+    { title: 'Status', dataIndex: 'status', key: 'status', width: '12%', render: (_: unknown, record: Torrent) => <StatusBadge status={record.status} /> },
+    { title: 'Progress', dataIndex: 'progress', key: 'progress', width: '15%', render: (progress: number) => <ProgressBar progress={progress} /> },
+    { title: 'Size', dataIndex: 'size_bytes', key: 'size_bytes', width: '15%', render: formatBytes },
+    { title: 'Peers', dataIndex: 'peers_count', key: 'peers_count', width: '10%' },
+    { title: 'Actions', key: 'actions', width: '10%', render: () => (
+            <ActionButtons
+                onPlay={handlePlayAction}
+                onPause={handlePauseAction}
+                onRemove={handleRemoveAction}
+                playClassName={styles.actionIconGreen}
+                pauseClassName={styles.actionIconYellow}
+                removeClassName={styles.actionIconRed}
+            />
+        ) },
+];
 
-const getColumns = (): ColumnsType<Torrent> => {
-    return [
-        { title: 'Name', dataIndex: 'name', key: 'name', ellipsis: true, width: '30%' },
-        { title: 'Status', dataIndex: 'status', key: 'status', width: '12%', render: renderStatusBadge },
-        { title: 'Progress', dataIndex: 'progress', key: 'progress', width: '15%', render: renderProgress },
-        { title: 'Size', dataIndex: 'size_bytes', key: 'size_bytes', width: '15%', render: formatBytes },
-        { title: 'Peers', dataIndex: 'peers_count', key: 'peers_count', width: '10%' },
-        { title: 'Actions', key: 'actions', width: '10%', render: renderActions }
-    ];
-};
-
-const StatsSection: React.FC<{ stats: DashboardStats }> = ({ stats }) => {
+const StatCard: React.FC<{ title: string; value: string | number; sub: React.ReactElement }> = ({ title, value, sub }) => {
     return (
-        <div className={styles.statsGrid}>
-            <div className={styles.statCard}><div className={styles.statTitle}>Total</div><div className={styles.statValue}>{stats.total}</div><div className={styles.statSub}>Torrents</div></div>
-            <div className={styles.statCard}><div className={styles.statTitle}>Downloading</div><div className={styles.statValue}>{stats.downloading}</div><div className={styles.statSub}><DownloadOutlined /> Active</div></div>
-            <div className={styles.statCard}><div className={styles.statTitle}>Seeding</div><div className={styles.statValue}>{stats.seeding}</div><div className={styles.statSub}><UploadOutlined /> Sharing</div></div>
-            <div className={styles.statCard}><div className={styles.statTitle}>Total Size</div><div className={styles.statValue}>{formatBytes(stats.totalSize)}</div><div className={styles.statSub}>Used space</div></div>
+        <div className={styles.statCard}>
+            <div className={styles.statTitle}>{title}</div>
+            <div className={styles.statValue}>{value}</div>
+            <div className={styles.statSub}>{sub}</div>
         </div>
     );
 };
 
-const renderErrorState = (error: Error): React.ReactElement => {
+const StatsSection: React.FC<StatsSectionProps> = ({ stats }) => {
+    return (
+        <div className={styles.statsGrid}>
+            <StatCard title="Total" value={stats.total} sub={<span>Torrents</span>} />
+            <StatCard title="Downloading" value={stats.downloading} sub={<><DownloadOutlined /> Active</>} />
+            <StatCard title="Seeding" value={stats.seeding} sub={<><UploadOutlined /> Sharing</>} />
+            <StatCard title="Total Size" value={formatBytes(stats.totalSize)} sub={<span>Used space</span>} />
+        </div>
+    );
+};
+
+const FilterButton: React.FC<FilterButtonProps> = ({ label, isActive, onClick, baseClassName, activeClassName }) => {
+    let className: string = baseClassName;
+    if (isActive) {
+        className = activeClassName;
+    }
+    return (
+        <button type="button" className={className} onClick={onClick}>
+            {label}
+        </button>
+    );
+};
+
+const FilterBar: React.FC<FilterBarProps> = ({ currentFilter, searchText, onFilterChange, onSearchChange, baseClassName, activeClassName }) => {
+    const handleFilterAll = useCallback(() => onFilterChange(null), [onFilterChange]);
+    const handleFilterDownloading = useCallback(() => onFilterChange('downloading'), [onFilterChange]);
+    const handleFilterSeeding = useCallback(() => onFilterChange('seeding'), [onFilterChange]);
+    const handleFilterPaused = useCallback(() => onFilterChange('paused'), [onFilterChange]);
+    const handleFilterError = useCallback(() => onFilterChange('error'), [onFilterChange]);
+
+    const handleSearchInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+        onSearchChange(e.target.value);
+    }, [onSearchChange]);
+
+    return (
+        <div className={styles.filtersBar}>
+            <div className={styles.filterButtons}>
+                <FilterButton label="All" isActive={currentFilter === null} onClick={handleFilterAll} baseClassName={baseClassName} activeClassName={activeClassName} />
+                <FilterButton label="Downloading" isActive={currentFilter === 'downloading'} onClick={handleFilterDownloading} baseClassName={baseClassName} activeClassName={activeClassName} />
+                <FilterButton label="Seeding" isActive={currentFilter === 'seeding'} onClick={handleFilterSeeding} baseClassName={baseClassName} activeClassName={activeClassName} />
+                <FilterButton label="Paused" isActive={currentFilter === 'paused'} onClick={handleFilterPaused} baseClassName={baseClassName} activeClassName={activeClassName} />
+                <FilterButton label="Error" isActive={currentFilter === 'error'} onClick={handleFilterError} baseClassName={baseClassName} activeClassName={activeClassName} />
+            </div>
+            <Input
+                placeholder="Search torrents..."
+                prefix={<SearchOutlined style={{ color: '#8b5cf6' }} />}
+                value={searchText}
+                onChange={handleSearchInput}
+                className={styles.searchInput}
+            />
+        </div>
+    );
+};
+
+const TorrentTable: React.FC<TorrentTableProps> = ({ data, loading, columns }) => {
+    const paginationConfig = { pageSize: 10, showTotal: (total: number) => `Total ${total} items` };
+    return (
+        <div className={styles.tableWrapper}>
+            <Table<Torrent>
+                dataSource={data}
+                columns={columns}
+                rowKey="info_hash"
+                loading={loading}
+                pagination={paginationConfig}
+            />
+        </div>
+    );
+};
+
+const ErrorState: React.FC<ErrorStateProps> = ({ error }) => {
     return (
         <div className={styles.dashboardContainer}>
             <div className={styles.errorState}>
@@ -139,11 +257,6 @@ const renderErrorState = (error: Error): React.ReactElement => {
     );
 };
 
-const getFilterButtonClass = (currentFilter: string | null, targetFilter: string | null): string => {
-    if (currentFilter === targetFilter) return `${styles.filterBtn} ${styles.filterBtnActive}`;
-    return styles.filterBtn;
-};
-
 export const Dashboard: React.FC = () => {
     const { data, isLoading, error } = useTorrents();
     const [searchText, setSearchText] = useState<string>('');
@@ -151,25 +264,29 @@ export const Dashboard: React.FC = () => {
 
     const safeData: Torrent[] = useMemo(() => data ?? [], [data]);
 
-    const filteredTorrents = useMemo(() => {
+    const filteredTorrents: Torrent[] = useMemo(() => {
         return getFilteredTorrents(safeData, statusFilter, searchText);
-    }, [safeData, searchText, statusFilter]);
+    }, [safeData, statusFilter, searchText]);
 
-    const stats = useMemo(() => {
+    const stats: DashboardStats = useMemo(() => {
         return calculateStats(safeData);
     }, [safeData]);
 
-    const handleFilterChange = (status: string | null): void => {
+    const handleFilterChange = useCallback((status: string | null): void => {
         setStatusFilter(status);
-        void message.info(`Filtered by: ${status || 'All'}`, 1);
-    };
+        if (status) {
+            void message.info(`Filtered by: ${status}`, 1);
+        } else {
+            void message.info('Filter cleared', 1);
+        }
+    }, []);
 
-    const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
-        setSearchText(e.target.value);
-    };
+    const handleSearchChange = useCallback((value: string): void => {
+        setSearchText(value);
+    }, []);
 
     if (error) {
-        return renderErrorState(error);
+        return <ErrorState error={error} />;
     }
 
     return (
@@ -177,35 +294,16 @@ export const Dashboard: React.FC = () => {
             <div className={styles.backgroundBlob1} />
             <div className={styles.backgroundBlob2} />
             <div className={styles.backgroundBlob3} />
-
             <StatsSection stats={stats} />
-
-            <div className={styles.filtersBar}>
-                <div className={styles.filterButtons}>
-                    <button type="button" className={getFilterButtonClass(statusFilter, null)} onClick={() => handleFilterChange(null)}>All</button>
-                    <button type="button" className={getFilterButtonClass(statusFilter, 'downloading')} onClick={() => handleFilterChange('downloading')}>Downloading</button>
-                    <button type="button" className={getFilterButtonClass(statusFilter, 'seeding')} onClick={() => handleFilterChange('seeding')}>Seeding</button>
-                    <button type="button" className={getFilterButtonClass(statusFilter, 'paused')} onClick={() => handleFilterChange('paused')}>Paused</button>
-                    <button type="button" className={getFilterButtonClass(statusFilter, 'error')} onClick={() => handleFilterChange('error')}>Error</button>
-                </div>
-                <Input
-                    placeholder="Search torrents..."
-                    prefix={<SearchOutlined style={{ color: '#8b5cf6' }} />}
-                    value={searchText}
-                    onChange={handleSearchChange}
-                    className={styles.searchInput}
-                />
-            </div>
-
-            <div className={styles.tableWrapper}>
-                <Table<Torrent>
-                    dataSource={filteredTorrents}
-                    columns={getColumns()}
-                    rowKey="info_hash"
-                    loading={isLoading}
-                    pagination={{ pageSize: 10, showTotal: (total) => `Total ${total} items` }}
-                />
-            </div>
+            <FilterBar
+                currentFilter={statusFilter}
+                searchText={searchText}
+                onFilterChange={handleFilterChange}
+                onSearchChange={handleSearchChange}
+                baseClassName={styles.filterBtn}
+                activeClassName={`${styles.filterBtn} ${styles.filterBtnActive}`}
+            />
+            <TorrentTable data={filteredTorrents} loading={isLoading} columns={COLUMNS} />
         </div>
     );
 };
