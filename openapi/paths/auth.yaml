@@ -1,8 +1,6 @@
 register:
   post:
     operationId: registerUser
-    summary: Регистрация нового пользователя
-    security: []
     requestBody:
       required: true
       content:
@@ -11,19 +9,19 @@ register:
             $ref: '../schemas/auth.yaml#/AuthRegisterRequest'
     responses:
       '201':
-        description: Успешная регистрация
         content:
           application/json:
             schema:
               $ref: '../schemas/auth.yaml#/AuthResponse'
       '400':
-        $ref: '../schemas/common.yaml#/ErrorResponse'
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/ApiError'
 
 login:
   post:
     operationId: loginUser
-    summary: Вход в систему
-    security: []
     requestBody:
       required: true
       content:
@@ -32,19 +30,19 @@ login:
             $ref: '../schemas/auth.yaml#/AuthLoginRequest'
     responses:
       '200':
-        description: Успешный вход
         content:
           application/json:
             schema:
               $ref: '../schemas/auth.yaml#/AuthResponse'
       '401':
-        $ref: '../schemas/common.yaml#/ErrorResponse'
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/ApiError'
 
 refresh:
   post:
     operationId: refreshToken
-    summary: Обновление токена доступа
-    security: []
     requestBody:
       required: true
       content:
@@ -53,10 +51,12 @@ refresh:
             $ref: '../schemas/auth.yaml#/AuthRefreshRequest'
     responses:
       '200':
-        description: Новые токены
         content:
           application/json:
             schema:
               $ref: '../schemas/auth.yaml#/AuthResponse'
       '401':
-        $ref: '../schemas/common.yaml#/ErrorResponse'
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/ApiError'

@@ -265,3 +265,10 @@
     0% { transform: scale(0.9); opacity: 0; }
     100% { transform: scale(1); opacity: 1; }
 }
+
+.actionIconGreen { cursor: pointer; color: #34d399; font-size: 18px; }
+.actionIconYellow { cursor: pointer; color: #fbbf24; font-size: 18px; }
+.actionIconRed { cursor: pointer; color: #f87171; font-size: 18px; }
+.errorIcon { font-size: 64px; color: #f87171; margin-bottom: 24px; }
+.errorTitle { color: #fff; }
+.errorText { color: #c4b5fd; }

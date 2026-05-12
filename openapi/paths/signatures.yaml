@@ -16,7 +16,7 @@ sign:
             schema:
               $ref: '../schemas/signature.yaml#/SignatureCreateResponse'
       '404':
-        $ref: '../schemas/common.yaml#/ErrorResponse'
+        $ref: '../schemas/common.yaml#/ApiError'
 
 collection:
   get:

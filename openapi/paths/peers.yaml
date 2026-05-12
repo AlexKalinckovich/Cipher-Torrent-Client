@@ -18,4 +18,4 @@ collection:
               items:
                 $ref: '../schemas/peer.yaml#/Peer'
       '404':
-        $ref: '../schemas/common.yaml#/ErrorResponse'
+        $ref: '../schemas/common.yaml#/ApiError'

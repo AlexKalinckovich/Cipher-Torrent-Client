@@ -1,4 +1,4 @@
-import { PacketLog } from './packetLog';
+import type {PacketLog} from './packetLog';
 
 export type PacketEventType = 'packet';
 
