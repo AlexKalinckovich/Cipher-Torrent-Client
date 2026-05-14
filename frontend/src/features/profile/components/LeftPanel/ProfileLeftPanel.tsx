@@ -1,8 +1,8 @@
 import React, { useState, useCallback } from 'react';
 import { EyeOutlined, EyeInvisibleOutlined } from '@ant-design/icons';
-import { formatDate } from './profileUtils';
-import type { UserFull } from '../../types/model/models.ts';
-import styles from './Profile.module.css';
+import { formatDate } from '@/features/profile/utils/profileUtils';
+import type { UserFull } from '@/types/model/models.ts';
+import styles from './LeftPanel.module.css';
 
 interface InfoBlockProps {
     label: string;
@@ -22,8 +22,12 @@ interface PublicKeyBlockProps {
 
 export const PublicKeyBlock: React.FC<PublicKeyBlockProps> = ({ publicKey }) => {
     const [isVisible, setIsVisible] = useState<boolean>(false);
-    const toggleVisibility = useCallback(() => setIsVisible((prev) => !prev), []);
-    const displayClass = isVisible ? styles.keyTextVisible : styles.keyTextBlurred;
+    const toggleVisibility = useCallback(() => {
+        setIsVisible((prev: boolean): boolean => {
+            return !prev;
+        });
+    }, []);
+    const displayClass: string = isVisible ? styles.keyTextVisible : styles.keyTextBlurred;
     const icon = isVisible ? <EyeInvisibleOutlined className={styles.keyIcon} /> : <EyeOutlined className={styles.keyIcon} />;
     return (
         <div className={styles.infoBlock}>

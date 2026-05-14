@@ -1,0 +1,56 @@
+.rightPanel {
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+}
+
+.statsTopHalf {
+    background: rgba(30, 20, 45, 0.5);
+    backdrop-filter: blur(25px);
+    border: 1px solid rgba(170, 59, 255, 0.3);
+    border-radius: 32px;
+    padding: 30px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 40px;
+}
+
+.activityGrid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    width: 100%;
+    margin-top: 10px;
+}
+
+.activityCard {
+    background: rgba(30, 20, 45, 0.4);
+    border: 1px solid rgba(170, 59, 255, 0.1);
+    padding: 12px;
+    border-radius: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    transition: all 0.3s ease;
+}
+
+.activityCard:hover {
+    border-color: rgba(170, 59, 255, 0.6);
+    transform: translateY(-5px);
+    background: rgba(45, 25, 80, 0.4);
+}
+
+.activityValue {
+    font-size: 20px;
+    font-weight: 900;
+    font-family: monospace;
+    margin-bottom: 2px;
+}
+
+.activityLabel {
+    font-size: 16px;
+    text-transform: uppercase;
+    color: #a78bfa;
+    letter-spacing: 1px;
+}

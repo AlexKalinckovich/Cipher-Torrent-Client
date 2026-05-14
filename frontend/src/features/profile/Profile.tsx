@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import type { UserFull } from '../../types/model/models.ts';
-import { ProfileLeftPanel } from './ProfileLeftPanel';
-import { ProfileRightPanel } from './ProfileRightPanel';
-import { ProfileReputationHeader } from './ProfileReputationHeader';
-import styles from './Profile.module.css';
+import { ProfileLeftPanel } from './components/LeftPanel/ProfileLeftPanel';
+import { ProfileRightPanel } from './components/RightPanel/ProfileRightPanel';
+import { ProfileReputationHeader } from './components/ReputationHeader/ProfileReputationHeader';
+import styles from './common.module.css';
 
 const createMockData = (): UserFull => ({
     id: 777,

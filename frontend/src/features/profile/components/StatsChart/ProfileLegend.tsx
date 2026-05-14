@@ -1,7 +1,7 @@
 import React from 'react';
-import { formatBytes } from './profileUtils';
-import type { StatItem } from './profileTypes';
-import styles from './Profile.module.css';
+import { formatBytes } from '@/features/profile/utils/profileUtils';
+import type { StatItem } from '@/features/profile/types/profileTypes';
+import styles from './StatsChart.module.css';
 
 interface ProfileLegendProps {
     items: StatItem[];

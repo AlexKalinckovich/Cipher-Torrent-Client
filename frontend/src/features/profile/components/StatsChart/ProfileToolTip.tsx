@@ -1,7 +1,7 @@
 import React from 'react';
-import { formatStatValue } from './profileUtils';
-import type { StatItem } from './profileTypes';
-import styles from './Profile.module.css';
+import { formatStatValue } from '@/features/profile/utils/profileUtils';
+import type { StatItem } from '@/features/profile/types/profileTypes';
+import styles from './StatsChart.module.css';
 
 interface ProfileTooltipPayload {
     payload: StatItem;

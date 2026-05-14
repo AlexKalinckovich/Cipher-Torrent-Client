@@ -2,9 +2,9 @@ import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PlusOutlined, DeleteOutlined, RightOutlined } from '@ant-design/icons';
 import { message, Skeleton } from 'antd';
-import { useTorrents } from '../../hooks/useTorrents';
-import { formatBytes } from './profileUtils';
-import styles from './Profile.module.css';
+import { useTorrents } from '@/hooks/useTorrents.ts';
+import { formatBytes } from '@/features/profile/utils/profileUtils';
+import styles from './RecentTorrents.module.css';
 
 export const ProfileRecentTorrents: React.FC = () => {
     const navigate = useNavigate();

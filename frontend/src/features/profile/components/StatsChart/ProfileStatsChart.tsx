@@ -1,8 +1,8 @@
 import React from 'react';
 import { PieChart, Pie, ResponsiveContainer, Tooltip } from 'recharts';
 import { renderCustomTooltip } from './ProfileToolTip';
-import type { StatItem } from './profileTypes';
-import styles from './Profile.module.css';
+import type { StatItem } from '@/features/profile/types/profileTypes';
+import styles from './StatsChart.module.css';
 
 interface ProfileStatsChartProps {
     data: StatItem[];

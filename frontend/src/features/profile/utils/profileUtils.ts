@@ -1,10 +1,10 @@
-import type { StatItem } from './profileTypes';
-import type { UserStats } from '../../types/model/models.ts';
+import type { StatItem } from '@/features/profile/types/profileTypes';
+import type { UserStats } from '@/types/model/models.ts';
 
-const TRAFFIC_COLORS = ['#3b82f6', '#ef4444'];
-const ACTIVITY_COLORS = ['#10b981', '#f59e0b', '#8b5cf6'];
-const KILOBYTE = 1024;
-const BYTE_SIZES = ['B', 'KB', 'MB', 'GB', 'TB'];
+const TRAFFIC_COLORS: string[] = ['#3b82f6', '#ef4444'];
+const ACTIVITY_COLORS: string[] = ['#10b981', '#f59e0b', '#8b5cf6'];
+const KILOBYTE: number = 1024;
+const BYTE_SIZES: string[] = ['B', 'KB', 'MB', 'GB', 'TB'];
 
 const getByteIndex = (bytes: number): number => {
     return Math.floor(Math.log(bytes) / Math.log(KILOBYTE));

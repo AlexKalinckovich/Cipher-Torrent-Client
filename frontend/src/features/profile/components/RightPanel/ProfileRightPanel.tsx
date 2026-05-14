@@ -1,11 +1,11 @@
 import React, { useMemo } from 'react';
-import type { UserStats } from '../../types/model/models.ts';
-import type { StatItem } from './profileTypes';
-import { buildTrafficData, buildActivityData } from './profileUtils';
-import { ProfileStatsChart } from './ProfileStatsChart';
-import { ProfileLegend } from './ProfileLegend';
-import { ProfileRecentTorrents } from './ProfileRecentTorrents';
-import styles from './Profile.module.css';
+import type { UserStats } from '../../../../types/model/models.ts';
+import type { StatItem } from '../../types/profileTypes';
+import { buildTrafficData, buildActivityData } from '../../utils/profileUtils';
+import { ProfileStatsChart } from '../StatsChart/ProfileStatsChart';
+import { ProfileLegend } from '../StatsChart/ProfileLegend';
+import { ProfileRecentTorrents } from '../RecentTorrents/ProfileRecentTorrents';
+import styles from './RightPanel.module.css';
 
 interface ProfileRightPanelProps {
     stats?: UserStats;
@@ -20,10 +20,9 @@ export const ProfileRightPanel: React.FC<ProfileRightPanelProps> = ({ stats }) =
             <div className={styles.statsTopHalf}>
                 <ProfileLegend items={trafficData} isByteFormat={true} />
                 <ProfileStatsChart data={trafficData} />
-            </div>
-
-            <div className={styles.activityGrid}>
-                {activityData.map(renderActivityCard)}
+                <div className={styles.activityGrid}>
+                    {activityData.map(renderActivityCard)}
+                </div>
             </div>
 
             <ProfileRecentTorrents />
