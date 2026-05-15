@@ -1,0 +1,22 @@
+.tableWrapper :global(.ant-table) {
+    background: rgba(35, 20, 60, 0.7) !important;
+    border-radius: 24px !important;
+    border: 1px solid rgba(170, 59, 255, 0.2) !important;
+    backdrop-filter: blur(10px);
+}
+
+.tableWrapper :global(.ant-table-thead > tr > th) {
+    background: rgba(45, 25, 80, 0.9) !important;
+    color: #d8b4fe !important;
+    border-bottom: 1px solid rgba(170, 59, 255, 0.3) !important;
+}
+
+.tableWrapper :global(.ant-table-tbody > tr > td) {
+    border-bottom: 1px solid rgba(170, 59, 255, 0.1) !important;
+    color: #e9d5ff !important;
+    transition: background 0.3s ease;
+}
+
+.tableWrapper :global(.ant-table-tbody > tr:hover > td) {
+    background: rgba(124, 58, 237, 0.2) !important;
+}

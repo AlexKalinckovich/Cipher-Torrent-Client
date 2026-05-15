@@ -1,0 +1,56 @@
+.dashboardContainer {
+    position: relative;
+    min-height: 100vh;
+    background: #130a1e;
+    color: #e9d5ff;
+    padding: 32px;
+    overflow: hidden;
+    font-family: system-ui, sans-serif;
+    z-index: 1;
+}
+
+.backgroundBlob1,
+.backgroundBlob2,
+.backgroundBlob3 {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(100px);
+    z-index: -1;
+    animation: floatBlob 12s infinite alternate ease-in-out;
+}
+
+.backgroundBlob1 {
+    width: 400px;
+    height: 400px;
+    background: rgba(124, 58, 237, 0.15);
+    top: -100px;
+    left: -100px;
+}
+
+.backgroundBlob2 {
+    width: 350px;
+    height: 350px;
+    background: rgba(216, 180, 254, 0.1);
+    bottom: -50px;
+    right: -50px;
+    animation-delay: -4s;
+}
+
+.backgroundBlob3 {
+    width: 250px;
+    height: 250px;
+    background: rgba(170, 59, 255, 0.12);
+    top: 40%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    animation-delay: -8s;
+}
+
+@keyframes floatBlob {
+    0% {
+        transform: translate(0, 0) scale(1);
+    }
+    100% {
+        transform: translate(30px, -50px) scale(1.1);
+    }
+}

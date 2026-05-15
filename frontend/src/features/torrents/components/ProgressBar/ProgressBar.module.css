@@ -1,0 +1,27 @@
+.progressWrapper {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.progressBarBg {
+    flex-grow: 1;
+    height: 8px;
+    background: rgba(170, 59, 255, 0.2);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.progressBarFill {
+    height: 100%;
+    background: linear-gradient(90deg, #7c3aed, #d8b4fe);
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(216, 180, 254, 0.8);
+    transition: width 0.4s ease;
+}
+
+.progressText {
+    font-weight: 600;
+    color: #d8b4fe;
+    min-width: 45px;
+}

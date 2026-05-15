@@ -1,0 +1,51 @@
+.pageContainer {
+    position: relative;
+    min-height: 100vh;
+    height: 100vh;
+    background: #0d0514;
+    padding: 15px;
+    overflow: hidden;
+}
+
+.backgroundBlob1, .backgroundBlob2 {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(120px);
+    z-index: 0;
+    animation: pulseBlob 15s infinite alternate ease-in-out;
+}
+
+.backgroundBlob1 {
+    width: 500px;
+    height: 500px;
+    background: rgba(124, 58, 237, 0.15);
+    top: -100px;
+    left: -100px;
+}
+
+.backgroundBlob2 {
+    width: 400px;
+    height: 400px;
+    background: rgba(170, 59, 255, 0.1);
+    bottom: -50px;
+    right: -50px;
+    animation-delay: -5s;
+}
+
+@keyframes pulseBlob {
+    0% {
+        transform: scale(1) translate(0, 0);
+    }
+    100% {
+        transform: scale(1.1) translate(30px, 30px);
+    }
+}
+
+.mainGrid {
+    display: grid;
+    grid-template-columns: 350px 1fr;
+    gap: 40px;
+    margin-top: 20px;
+    height: calc(100vh - 50px);
+    overflow: auto;
+}
