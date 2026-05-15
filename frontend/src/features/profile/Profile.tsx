@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import type { UserFull } from '../../types/model/models.ts';
 import { ProfileLeftPanel } from './components/LeftPanel/ProfileLeftPanel';
 import { ProfileRightPanel } from './components/RightPanel/ProfileRightPanel';
-import { ProfileReputationHeader } from './components/ReputationHeader/ProfileReputationHeader';
 import styles from './common.module.css';
 
 const createMockData = (): UserFull => ({
@@ -28,12 +27,11 @@ const useMockUserProfile = (): UserFull => {
 };
 
 export const Profile: React.FC = () => {
-    const user = useMockUserProfile();
+    const user: UserFull = useMockUserProfile();
     return (
         <div className={styles.pageContainer}>
             <div className={styles.backgroundBlob1} />
             <div className={styles.backgroundBlob2} />
-            <ProfileReputationHeader score={user.stats?.reputation_score} />
             <div className={styles.mainGrid}>
                 <ProfileLeftPanel user={user} />
                 <ProfileRightPanel stats={user.stats} />

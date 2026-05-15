@@ -9,14 +9,13 @@ interface ProfileLegendProps {
 }
 
 const renderValue = (item: StatItem, isByte: boolean): string => {
-    if (isByte) return formatBytes(item.value);
-    return item.value.toString();
+    return isByte ? formatBytes(item.value) : item.value.toString();
 };
 
 export const ProfileLegend: React.FC<ProfileLegendProps> = ({ items, isByteFormat }) => {
     return (
         <div className={styles.legendSection}>
-            {items.map((item) => (
+            {items.map((item : StatItem) => (
                 <div key={item.name} className={styles.legendItem}>
                     <div className={styles.colorDot} style={{ backgroundColor: item.color }} />
                     <span className={styles.legendName}>{item.name}</span>

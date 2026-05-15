@@ -1,0 +1,6 @@
+.cyberInput :global(.ant-input-affix-wrapper) { background: rgba(20, 10, 35, 0.6) !important; border: 1px solid rgba(170, 59, 255, 0.3) !important; border-radius: 12px !important; padding: 10px 16px !important; }
+.cyberInput :global(.ant-input) { color: #fff !important; background: transparent !important; }
+.cyberInput :global(.ant-input::placeholder) { color: #6b6375 !important; }
+.submitBtn { width: 100%; height: 50px; background: linear-gradient(90deg, #7c3aed, #aa3bff); border: none; border-radius: 15px; color: #fff; font-size: 16px; font-weight: 700; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; margin-top: 10px; }
+.submitBtn:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(124, 58, 237, 0.4); }
+.submitBtn:active { transform: translateY(0); }

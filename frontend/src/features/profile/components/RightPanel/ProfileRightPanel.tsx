@@ -1,10 +1,11 @@
 import React, { useMemo } from 'react';
-import type { UserStats } from '../../../../types/model/models.ts';
-import type { StatItem } from '../../types/profileTypes';
-import { buildTrafficData, buildActivityData } from '../../utils/profileUtils';
+import type { UserStats } from '@/types/model/models.ts';
+import type { StatItem } from '@/features/profile/types/profileTypes';
+import { buildTrafficData, buildActivityData } from '@/features/profile/utils/profileUtils';
 import { ProfileStatsChart } from '../StatsChart/ProfileStatsChart';
 import { ProfileLegend } from '../StatsChart/ProfileLegend';
 import { ProfileRecentTorrents } from '../RecentTorrents/ProfileRecentTorrents';
+import { ProfileReputationHeader } from '../ReputationHeader/ProfileReputationHeader';
 import styles from './RightPanel.module.css';
 
 interface ProfileRightPanelProps {
@@ -18,8 +19,17 @@ export const ProfileRightPanel: React.FC<ProfileRightPanelProps> = ({ stats }) =
     return (
         <div className={styles.rightPanel}>
             <div className={styles.statsTopHalf}>
-                <ProfileLegend items={trafficData} isByteFormat={true} />
-                <ProfileStatsChart data={trafficData} />
+                <div className={styles.statsHeaderRow}>
+                    <div className={styles.legendWrapper}>
+                        <ProfileLegend items={trafficData} isByteFormat={true} />
+                    </div>
+                    <div className={styles.chartWrapper}>
+                        <ProfileStatsChart data={trafficData} />
+                    </div>
+                    <div className={styles.reputationWrapper}>
+                        <ProfileReputationHeader score={stats?.reputation_score} />
+                    </div>
+                </div>
                 <div className={styles.activityGrid}>
                     {activityData.map(renderActivityCard)}
                 </div>

@@ -1,0 +1,17 @@
+.actionIconGreen {
+    cursor: pointer;
+    color: #34d399;
+    font-size: 18px;
+}
+
+.actionIconYellow {
+    cursor: pointer;
+    color: #fbbf24;
+    font-size: 18px;
+}
+
+.actionIconRed {
+    cursor: pointer;
+    color: #f87171;
+    font-size: 18px;
+}
