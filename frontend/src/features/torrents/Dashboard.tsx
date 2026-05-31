@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import type { Torrent } from '@/types/model/models.ts';
@@ -14,6 +15,7 @@ import { StatsSection } from './components/StatsSection/StatsSection';
 import { FilterBar } from './components/FilterBar/FilterBar';
 import { TorrentTable } from './components/TorrentTable/TorrentTable';
 import { ErrorState } from './components/ErrorState/ErrorState';
+import { ProfileLink } from './components/ProfileLink/ProfileLink';
 
 import filterStyles from './components/FilterBar/FilterBar.module.css';
 import actionStyles from './components/ActionButtons/ActionButtons.module.css';
@@ -24,7 +26,7 @@ const sumSize = (sum: number, t: Torrent): number => {
 };
 
 const countStatus = (torrents: Torrent[], status: Torrent['status']): number => {
-    return torrents.filter((item: Torrent) => item.status === status).length;
+    return torrents.filter((item: Torrent): boolean => item.status === status).length;
 };
 
 const calculateStats = (torrents: Torrent[]): DashboardStats => {
@@ -52,11 +54,11 @@ const handleRemoveAction = (): void => {
 
 const COLUMNS: ColumnsType<Torrent> = [
     { title: 'Name', dataIndex: 'name', key: 'name', ellipsis: true, width: '30%' },
-    { title: 'Status', dataIndex: 'status', key: 'status', width: '12%', render: (_: unknown, record: Torrent) => <StatusBadge status={record.status} /> },
-    { title: 'Progress', dataIndex: 'progress', key: 'progress', width: '15%', render: (progress: number) => <ProgressBar progress={progress} /> },
+    { title: 'Status', dataIndex: 'status', key: 'status', width: '12%', render: (_: unknown, record: Torrent): React.ReactNode => <StatusBadge status={record.status} /> },
+    { title: 'Progress', dataIndex: 'progress', key: 'progress', width: '15%', render: (progress: number): React.ReactNode => <ProgressBar progress={progress} /> },
     { title: 'Size', dataIndex: 'size_bytes', key: 'size_bytes', width: '15%', render: formatBytes },
     { title: 'Peers', dataIndex: 'peers_count', key: 'peers_count', width: '10%' },
-    { title: 'Actions', key: 'actions', width: '10%', render: () => (
+    { title: 'Actions', key: 'actions', width: '10%', render: (): React.ReactNode => (
             <ActionButtons
                 onPlay={handlePlayAction}
                 onPause={handlePauseAction}
@@ -70,16 +72,17 @@ const COLUMNS: ColumnsType<Torrent> = [
 
 export const Dashboard: React.FC = () => {
     const { data, isLoading, error } = useTorrents();
+    const navigate = useNavigate();
     const [searchText, setSearchText] = useState<string>('');
     const [statusFilter, setStatusFilter] = useState<string | null>(null);
 
-    const safeData: Torrent[] = useMemo(() => data ?? [], [data]);
+    const safeData: Torrent[] = useMemo((): Torrent[] => data ?? [], [data]);
 
-    const filteredTorrents: Torrent[] = useMemo(() => {
+    const filteredTorrents: Torrent[] = useMemo((): Torrent[] => {
         return getFilteredTorrents(safeData, statusFilter, searchText);
     }, [safeData, statusFilter, searchText]);
 
-    const stats: DashboardStats = useMemo(() => {
+    const stats: DashboardStats = useMemo((): DashboardStats => {
         return calculateStats(safeData);
     }, [safeData]);
 
@@ -96,6 +99,10 @@ export const Dashboard: React.FC = () => {
         setSearchText(value);
     }, []);
 
+    const handleRowClick = useCallback((torrent: Torrent): void => {
+        navigate('/inspector', { state: { torrent } });
+    }, [navigate]);
+
     if (error) {
         return <ErrorState error={error} />;
     }
@@ -105,6 +112,8 @@ export const Dashboard: React.FC = () => {
             <div className={commonStyles.backgroundBlob1} />
             <div className={commonStyles.backgroundBlob2} />
             <div className={commonStyles.backgroundBlob3} />
+
+            <ProfileLink />
 
             <StatsSection stats={stats} />
 
@@ -117,7 +126,12 @@ export const Dashboard: React.FC = () => {
                 activeClassName={`${filterStyles.filterBtn} ${filterStyles.filterBtnActive}`}
             />
 
-            <TorrentTable data={filteredTorrents} loading={isLoading} columns={COLUMNS} />
+            <TorrentTable
+                data={filteredTorrents}
+                loading={isLoading}
+                columns={COLUMNS}
+                onRowClick={handleRowClick}
+            />
         </div>
     );
 };

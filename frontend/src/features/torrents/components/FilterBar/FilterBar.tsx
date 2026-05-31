@@ -4,26 +4,47 @@ import { SearchOutlined } from '@ant-design/icons';
 import type { FilterBarProps, FilterButtonProps } from '@/features/torrents/types/dashboardTypes';
 import styles from './FilterBar.module.css';
 
+const getButtonClass = (isActive: boolean, baseClassName: string, activeClassName: string): string => {
+    return isActive ? activeClassName : baseClassName;
+};
+
 const FilterButton: React.FC<FilterButtonProps> = ({ label, isActive, onClick, baseClassName, activeClassName }) => {
-    let className: string = baseClassName;
-    if (isActive) {
-        className = activeClassName;
-    }
     return (
-        <button type="button" className={className} onClick={onClick}>
+        <button type="button" className={getButtonClass(isActive, baseClassName, activeClassName)} onClick={onClick}>
             {label}
         </button>
     );
 };
 
-export const FilterBar: React.FC<FilterBarProps> = ({ currentFilter, searchText, onFilterChange, onSearchChange, baseClassName, activeClassName }) => {
-    const handleFilterAll = useCallback(() => onFilterChange(null), [onFilterChange]);
-    const handleFilterDownloading = useCallback(() => onFilterChange('downloading'), [onFilterChange]);
-    const handleFilterSeeding = useCallback(() => onFilterChange('seeding'), [onFilterChange]);
-    const handleFilterPaused = useCallback(() => onFilterChange('paused'), [onFilterChange]);
-    const handleFilterError = useCallback(() => onFilterChange('error'), [onFilterChange]);
+export const FilterBar: React.FC<FilterBarProps> = ({
+                                                        currentFilter,
+                                                        searchText,
+                                                        onFilterChange,
+                                                        onSearchChange,
+                                                        baseClassName,
+                                                        activeClassName
+                                                    }) => {
+    const handleFilterAll = useCallback((): void => {
+        onFilterChange(null);
+    }, [onFilterChange]);
 
-    const handleSearchInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFilterDownloading = useCallback((): void => {
+        onFilterChange('downloading');
+    }, [onFilterChange]);
+
+    const handleFilterSeeding = useCallback((): void => {
+        onFilterChange('seeding');
+    }, [onFilterChange]);
+
+    const handleFilterPaused = useCallback((): void => {
+        onFilterChange('paused');
+    }, [onFilterChange]);
+
+    const handleFilterError = useCallback((): void => {
+        onFilterChange('error');
+    }, [onFilterChange]);
+
+    const handleSearchInput = useCallback((e: React.ChangeEvent<HTMLInputElement>): void => {
         onSearchChange(e.target.value);
     }, [onSearchChange]);
 

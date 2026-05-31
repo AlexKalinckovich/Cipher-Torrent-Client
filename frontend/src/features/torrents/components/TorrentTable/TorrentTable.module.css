@@ -20,3 +20,23 @@
 .tableWrapper :global(.ant-table-tbody > tr:hover > td) {
     background: rgba(124, 58, 237, 0.2) !important;
 }
+
+.tableWrapper {
+    width: 100%;
+    background: rgba(10, 5, 15, 0.65);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid #3b0764;
+    border-radius: 12px;
+    padding: 16px;
+    overflow-x: auto;
+}
+
+.clickableRow {
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.clickableRow:hover td {
+    background-color: rgba(124, 58, 237, 0.2) !important;
+}

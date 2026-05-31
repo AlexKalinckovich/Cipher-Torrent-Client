@@ -1,7 +1,8 @@
 import React, { useCallback } from 'react';
 import { Input } from 'antd';
 import { PlayCircleOutlined, PauseCircleOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons';
-import type { InspectorToolbarProps } from '@/features/packetInspector/types/packetInspectorTypes';
+import type { InspectorToolbarProps } from '../../types/packetInspectorTypes';
+import { InspectorNavigation } from '../InspectorNavigation/InspectorNavigation';
 import styles from './InspectorToolbar.module.css';
 
 const getStatusClass = (isPaused: boolean): string => {
@@ -18,7 +19,7 @@ export const InspectorToolbar: React.FC<InspectorToolbarProps> = ({
                                                                       searchText,
                                                                       onSearchChange
                                                                   }) => {
-    const handleSearch: (e: React.ChangeEvent<HTMLInputElement>) => void = useCallback((e: React.ChangeEvent<HTMLInputElement>): void => {
+    const handleSearch = useCallback((e: React.ChangeEvent<HTMLInputElement>): void => {
         onSearchChange(e.target.value);
     }, [onSearchChange]);
 
@@ -27,6 +28,7 @@ export const InspectorToolbar: React.FC<InspectorToolbarProps> = ({
             <div className={styles.statusWrapper}>
                 <div className={getStatusClass(isPaused)} />
                 <h1 className={styles.title}>Packet Inspector</h1>
+                <InspectorNavigation />
             </div>
             <div className={styles.controls}>
                 <Input
