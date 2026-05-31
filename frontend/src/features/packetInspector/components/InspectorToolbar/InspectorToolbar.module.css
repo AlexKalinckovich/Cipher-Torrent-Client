@@ -1,0 +1,88 @@
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #7c3aed;
+    margin-bottom: 16px;
+}
+
+.statusWrapper {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.statusDot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+}
+
+.statusActive {
+    background: #10b981;
+    box-shadow: 0 0 12px #10b981;
+    animation: blink 2s infinite;
+}
+
+.statusPaused {
+    background: #f59e0b;
+    box-shadow: 0 0 12px #f59e0b;
+}
+
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+
+.title {
+    font-size: 22px;
+    font-weight: 900;
+    color: #fff;
+    text-transform: uppercase;
+    letter-spacing: 4px;
+    text-shadow: 0 0 15px #c084fc;
+    margin: 0;
+}
+
+.controls {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+}
+
+.btn {
+    background: transparent;
+    border: 1px solid #7c3aed;
+    color: #c4b5fd;
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease-in-out;
+    font-family: inherit;
+    font-weight: 700;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn:hover {
+    background: #7c3aed;
+    color: #fff;
+    box-shadow: 0 0 15px #7c3aed;
+}
+
+.searchInput {
+    background: rgba(20, 10, 35, 0.8) !important;
+    border: 1px solid #7c3aed !important;
+    color: #fff !important;
+    font-family: inherit !important;
+    border-radius: 8px !important;
+    width: 250px;
+}
+
+.searchInput input {
+    background: transparent !important;
+    color: #fff !important;
+}
