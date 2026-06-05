@@ -32,12 +32,13 @@ const renderReputationContent = (event: ReputationUpdateEvent): React.ReactNode 
     </div>
 );
 
+
 const displayPeerNotification = (event: PeerConnectedEvent): void => {
     notification.open({
         title: <span className={styles.titlePeer}>SYSTEM ALARM: PEER CONNECTED</span>,
         description: renderPeerContent(event),
         className: styles.toastPeer,
-        placement: 'bottomRight',
+        placement: 'topLeft',
         duration: 5,
     });
 };
@@ -47,7 +48,7 @@ const displayReputationNotification = (event: ReputationUpdateEvent): void => {
         title: <span className={styles.titleReputation}>REPUTATION SHIFT DETECTED</span>,
         description: renderReputationContent(event),
         className: styles.toastReputation,
-        placement: 'bottomRight',
+        placement: 'topLeft',
         duration: 5,
     });
 };
