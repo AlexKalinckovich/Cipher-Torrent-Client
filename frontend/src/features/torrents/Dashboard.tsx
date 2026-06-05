@@ -16,6 +16,9 @@ import { FilterBar } from './components/FilterBar/FilterBar';
 import { TorrentTable } from './components/TorrentTable/TorrentTable';
 import { ErrorState } from './components/ErrorState/ErrorState';
 import { ProfileLink } from './components/ProfileLink/ProfileLink';
+import { TorrentSpeed } from './components/TorrentSpeed/TorrentSpeed';
+import { TorrentDetailsModal } from './components/TorrentDetailsModal/TorrentDetailsModal';
+import { GlobalNotificationCatcher } from '@/features/notification/components/GlobalNotificationCatcher';
 
 import filterStyles from './components/FilterBar/FilterBar.module.css';
 import actionStyles from './components/ActionButtons/ActionButtons.module.css';
@@ -40,41 +43,32 @@ const calculateStats = (torrents: Torrent[]): DashboardStats => {
     };
 };
 
-const handlePlayAction = (): void => {
-    void message.info('Play action');
+const handlePlayAction = (record: Torrent): void => {
+    void message.info(`Play ${record.name}`);
 };
 
-const handlePauseAction = (): void => {
-    void message.info('Pause action');
+const handlePauseAction = (record: Torrent): void => {
+    void message.info(`Pause ${record.name}`);
 };
 
-const handleRemoveAction = (): void => {
-    void message.info('Remove action');
+const handleRemoveAction = (record: Torrent): void => {
+    void message.info(`Remove ${record.name}`);
 };
 
-const COLUMNS: ColumnsType<Torrent> = [
-    { title: 'Name', dataIndex: 'name', key: 'name', ellipsis: true, width: '30%' },
-    { title: 'Status', dataIndex: 'status', key: 'status', width: '12%', render: (_: unknown, record: Torrent): React.ReactNode => <StatusBadge status={record.status} /> },
-    { title: 'Progress', dataIndex: 'progress', key: 'progress', width: '15%', render: (progress: number): React.ReactNode => <ProgressBar progress={progress} /> },
-    { title: 'Size', dataIndex: 'size_bytes', key: 'size_bytes', width: '15%', render: formatBytes },
-    { title: 'Peers', dataIndex: 'peers_count', key: 'peers_count', width: '10%' },
-    { title: 'Actions', key: 'actions', width: '10%', render: (): React.ReactNode => (
-            <ActionButtons
-                onPlay={handlePlayAction}
-                onPause={handlePauseAction}
-                onRemove={handleRemoveAction}
-                playClassName={actionStyles.actionIconGreen}
-                pauseClassName={actionStyles.actionIconYellow}
-                removeClassName={actionStyles.actionIconRed}
-            />
-        ) },
-];
+const notifyFilter = (status: string | null): void => {
+    if (status) {
+        void message.info(`Filtered by: ${status}`, 1);
+        return;
+    }
+    void message.info('Filter cleared', 1);
+};
 
 export const Dashboard: React.FC = () => {
     const { data, isLoading, error } = useTorrents();
     const navigate = useNavigate();
     const [searchText, setSearchText] = useState<string>('');
     const [statusFilter, setStatusFilter] = useState<string | null>(null);
+    const [detailsTorrent, setDetailsTorrent] = useState<Torrent | null>(null);
 
     const safeData: Torrent[] = useMemo((): Torrent[] => data ?? [], [data]);
 
@@ -88,11 +82,7 @@ export const Dashboard: React.FC = () => {
 
     const handleFilterChange = useCallback((status: string | null): void => {
         setStatusFilter(status);
-        if (status) {
-            void message.info(`Filtered by: ${status}`, 1);
-        } else {
-            void message.info('Filter cleared', 1);
-        }
+        notifyFilter(status);
     }, []);
 
     const handleSearchChange = useCallback((value: string): void => {
@@ -103,12 +93,42 @@ export const Dashboard: React.FC = () => {
         navigate('/inspector', { state: { torrent } });
     }, [navigate]);
 
+    const handleOpenDetails = useCallback((torrent: Torrent): void => {
+        setDetailsTorrent(torrent);
+    }, []);
+
+    const handleCloseDetails = useCallback((): void => {
+        setDetailsTorrent(null);
+    }, []);
+
+    const COLUMNS: ColumnsType<Torrent> = useMemo((): ColumnsType<Torrent> => [
+        { title: 'Name', dataIndex: 'name', key: 'name', ellipsis: true, width: '25%' },
+        { title: 'Status', dataIndex: 'status', key: 'status', width: '10%', render: (_: unknown, record: Torrent): React.ReactNode => <StatusBadge status={record.status} /> },
+        { title: 'Speed', key: 'speed', width: '15%', render: (_: unknown, record: Torrent): React.ReactNode => <TorrentSpeed rx={record.download_speed_bps} tx={record.upload_speed_bps} /> },
+        { title: 'Progress', dataIndex: 'progress', key: 'progress', width: '15%', render: (progress: number): React.ReactNode => <ProgressBar progress={progress} /> },
+        { title: 'Size', dataIndex: 'size_bytes', key: 'size_bytes', width: '10%', render: formatBytes },
+        { title: 'Peers', dataIndex: 'peers_count', key: 'peers_count', width: '10%' },
+        { title: 'Actions', key: 'actions', width: '15%', render: (_: unknown, record: Torrent): React.ReactNode => (
+                <ActionButtons
+                    onPlay={(): void => handlePlayAction(record)}
+                    onPause={(): void => handlePauseAction(record)}
+                    onRemove={(): void => handleRemoveAction(record)}
+                    onInfo={(): void => handleOpenDetails(record)}
+                    playClassName={actionStyles.actionIconGreen}
+                    pauseClassName={actionStyles.actionIconYellow}
+                    removeClassName={actionStyles.actionIconRed}
+                    infoClassName={actionStyles.actionIconBlue}
+                />
+            ) },
+    ], [handleOpenDetails]);
+
     if (error) {
         return <ErrorState error={error} />;
     }
 
     return (
         <div className={commonStyles.dashboardContainer}>
+            <GlobalNotificationCatcher />
             <div className={commonStyles.backgroundBlob1} />
             <div className={commonStyles.backgroundBlob2} />
             <div className={commonStyles.backgroundBlob3} />
@@ -131,6 +151,11 @@ export const Dashboard: React.FC = () => {
                 loading={isLoading}
                 columns={COLUMNS}
                 onRowClick={handleRowClick}
+            />
+
+            <TorrentDetailsModal
+                torrent={detailsTorrent}
+                onClose={handleCloseDetails}
             />
         </div>
     );

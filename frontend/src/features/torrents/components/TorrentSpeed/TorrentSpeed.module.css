@@ -1,0 +1,18 @@
+.speedContainer {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.speedRow {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.rxIcon { color: #10b981; }
+.txIcon { color: #f59e0b; }
+.speedText { color: #c4b5fd; }
