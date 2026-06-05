@@ -46,6 +46,7 @@ export interface TorrentTableProps {
     data: Torrent[];
     loading: boolean;
     columns: ColumnsType<Torrent>;
+    onRowClick: (torrent: Torrent) => void;
 }
 
 export interface ProgressBarProps {

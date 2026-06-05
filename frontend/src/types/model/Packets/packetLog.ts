@@ -11,5 +11,6 @@ export interface PacketLog {
     raw_payload_base64: string;
     parsed_info?: string;
     reputation_payload?: ReputationReceipt;
+    has_reputation_extension : boolean;
     size_bytes?: number;
 }

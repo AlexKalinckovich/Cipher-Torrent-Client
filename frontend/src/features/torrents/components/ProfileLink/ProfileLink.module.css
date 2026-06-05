@@ -1,0 +1,35 @@
+.container {
+    display: flex;
+    justify-content: flex-end;
+    width: 100%;
+    margin-bottom: 24px;
+    z-index: 10;
+    position: relative;
+}
+
+.btn {
+    background: rgba(30, 15, 50, 0.8);
+    border: 1px solid rgba(170, 59, 255, 0.5);
+    color: #c4b5fd;
+    padding: 10px 24px;
+    border-radius: 30px;
+    cursor: pointer;
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    font-weight: 700;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: all 0.3s ease-in-out;
+    box-shadow: 0 0 15px rgba(88, 28, 135, 0.4);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+.btn:hover {
+    background: #7c3aed;
+    color: #fff;
+    border-color: #a78bfa;
+    box-shadow: 0 0 20px #7c3aed;
+    transform: scale(1.05);
+}

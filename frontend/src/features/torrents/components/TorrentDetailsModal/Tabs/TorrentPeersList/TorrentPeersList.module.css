@@ -1,0 +1,127 @@
+.listContainer {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-right: 8px;
+}
+
+.row {
+    display: grid;
+    grid-template-columns: 2fr 1.5fr 1.5fr 1.5fr 1.5fr 1fr;
+    align-items: center;
+    background: rgba(30, 15, 50, 0.6);
+    padding: 12px 16px;
+    border-radius: 8px;
+    border: 1px solid rgba(124, 58, 237, 0.2);
+    transition: all 0.2s ease;
+}
+
+.row:hover {
+    background: rgba(124, 58, 237, 0.15);
+    border-color: #7c3aed;
+    box-shadow: inset 0 0 15px rgba(124, 58, 237, 0.1);
+}
+
+.endpoint {
+    color: #c4b5fd;
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    font-size: 13px;
+    display: flex;
+    flex-direction: column;
+}
+
+.port {
+    color: #6b7280;
+    font-size: 11px;
+}
+
+.clientName {
+    color: #e9d5ff;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.datesCol {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.dateRow {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.dateLabel {
+    color: #8b5cf6;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    width: 25px;
+}
+
+.dateValue {
+    color: #9ca3af;
+    font-family: ui-monospace, Consolas, monospace;
+    font-size: 11px;
+}
+
+.flagsContainer {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.flagBadge {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: ui-monospace, Consolas, monospace;
+}
+
+.flagActive {
+    background: rgba(245, 158, 11, 0.15);
+    color: #f59e0b;
+    border: 1px solid #f59e0b;
+    box-shadow: 0 0 8px rgba(245, 158, 11, 0.3);
+}
+
+.flagInactive {
+    background: rgba(255, 255, 255, 0.05);
+    color: #4b5563;
+    border: 1px solid transparent;
+}
+
+.repScore {
+    font-family: ui-monospace, Consolas, monospace;
+    font-size: 15px;
+    font-weight: 900;
+    text-align: right;
+}
+
+.repGood {
+    color: #10b981;
+    text-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+}
+
+.repBad {
+    color: #ef4444;
+    text-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+}
+
+.emptyState {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    min-height: 200px;
+}
+
+.glitchText {
+    color: #6b7280;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}

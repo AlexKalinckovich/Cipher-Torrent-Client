@@ -1,69 +1,82 @@
-import React, { useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { PlusOutlined, DeleteOutlined, RightOutlined } from '@ant-design/icons';
+import React, { useCallback, useMemo, useState } from 'react';
+import {type NavigateFunction, useNavigate} from 'react-router-dom';
+import { RightOutlined } from '@ant-design/icons';
 import { message, Skeleton } from 'antd';
 import { useTorrents } from '@/hooks/useTorrents.ts';
-import { formatBytes } from '@/features/profile/utils/profileUtils';
+import type { Torrent, TorrentAddRequest } from '@/types/model/models.ts';
+import { AddTorrentModal } from '@/features/torrents/components/AddTorrentModal/AddTorrentModal';
+import { RecentTorrentsHeader } from './RecentTorrentsHeader';
+import { RecentTorrentsList } from './RecentTorrentsList';
 import styles from './RecentTorrents.module.css';
 
-export const ProfileRecentTorrents: React.FC = () => {
-    const navigate = useNavigate();
-    const { data, isLoading } = useTorrents();
+const getSortedTorrents = (data: Torrent[] | undefined): Torrent[] => {
+    if (!data) {
+        return [];
+    }
+    return [...data].sort((a: Torrent, b: Torrent): number => {
+        return new Date(b.added_at).getTime() - new Date(a.added_at).getTime();
+    });
+};
 
-    const recentTorrents = useMemo(() => {
-        if (!data) return [];
-        return [...data]
-            .sort((a, b) => new Date(b.added_at).getTime() - new Date(a.added_at).getTime())
-            .slice(0, 3);
+export const ProfileRecentTorrents: React.FC = () => {
+    const navigate: NavigateFunction = useNavigate();
+    const { data, isLoading } = useTorrents();
+    const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
+
+    const recentTorrents: Torrent[] = useMemo((): Torrent[] => {
+        const sorted: Torrent[] = getSortedTorrents(data);
+        return sorted.slice(0, 3);
     }, [data]);
 
-    const handleAdd = (): void => {
-        void message.info('Opening file selector...');
-    };
+    const handleOpenAdd = useCallback((): void => {
+        setIsAddModalOpen(true);
+    }, []);
 
-    const handleRemove = (e: React.MouseEvent, name: string): void => {
+    const handleCloseAdd = useCallback((): void => {
+        setIsAddModalOpen(false);
+    }, []);
+
+    const handleSubmitAdd = useCallback((request: TorrentAddRequest): void => {
+        void message.success('NEW TORRENT SUBMITTED TO NETWORK QUEUE');
+        console.log('Payload:', request);
+    }, []);
+
+    const handleRemove = useCallback((e: React.MouseEvent, name: string): void => {
         e.stopPropagation();
         void message.warning(`Removing ${name}...`);
-    };
+    }, []);
 
-    const handleNavigate = (): void => {
+    const handleSelect = useCallback((torrent: Torrent): void => {
+        navigate('/inspector', { state: { torrent } });
+    }, [navigate]);
+
+    const handleViewAll = useCallback((): void => {
         navigate('/dashboard');
-    };
+    }, [navigate]);
 
-    if (isLoading) return <Skeleton active />;
+    if (isLoading) {
+        return <Skeleton active paragraph={{ rows: 3 }} />;
+    }
 
     return (
-        <div className={styles.statsBottomHalf}>
-            <div className={styles.sectionHeader}>
-                <span className={styles.sectionTitle}>Recent Activity</span>
-                <div className={styles.headerActions}>
-                    <button type="button" className={styles.actionBtn} onClick={handleAdd}>
-                        <PlusOutlined /> Add New
-                    </button>
-                </div>
-            </div>
+        <div className={styles.recentContainer}>
+            <RecentTorrentsHeader onAddClick={handleOpenAdd} />
 
-            <div className={styles.recentList}>
-                {recentTorrents.map((torrent) => (
-                    <div key={torrent.info_hash} className={styles.recentItem} onClick={handleNavigate}>
-                        <div className={styles.itemInfo}>
-                            <span className={styles.itemName}>{torrent.name}</span>
-                            <div className={styles.itemMeta}>
-                                <span>{formatBytes(torrent.size_bytes)}</span>
-                                <span>{torrent.status}</span>
-                            </div>
-                        </div>
-                        <DeleteOutlined
-                            className={styles.removeIcon}
-                            onClick={(e) => handleRemove(e, torrent.name)}
-                        />
-                    </div>
-                ))}
-            </div>
+            <RecentTorrentsList
+                torrents={recentTorrents}
+                onSelect={handleSelect}
+                onRemove={handleRemove}
+            />
 
-            <button type="button" className={`${styles.actionBtn} ${styles.viewAllBtn}`} onClick={handleNavigate}>
+            <button type="button" className={`${styles.actionBtn} ${styles.viewAllBtn}`} onClick={handleViewAll}>
                 View All in Dashboard <RightOutlined />
             </button>
+
+            <AddTorrentModal
+                isOpen={isAddModalOpen}
+                onClose={handleCloseAdd}
+                onSubmit={handleSubmitAdd}
+            />
         </div>
     );
 };

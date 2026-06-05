@@ -1,4 +1,4 @@
-import type { PacketEvent, PacketLog, PacketDirection } from '@/types/model/models.ts';
+import type { PacketEvent, PacketLog, PacketDirection, ReputationReceipt } from '@/types/model/models.ts';
 
 export type PacketCallback = (event: PacketEvent) => void;
 
@@ -38,23 +38,48 @@ export class MockPacketGenerator {
     }
 
     private createRandomPacket(id: number): PacketLog {
+        const messageType: string = this.getRandomMessageType();
         return {
             id: id,
             timestamp: new Date().toISOString(),
             direction: this.getRandomDirection(),
-            message_type: this.getRandomMessageType(),
+            message_type: messageType,
             peer_ip: this.getRandomIp(),
             raw_payload_base64: 'SGVsbG8gQ3liZXJwdW5r',
-            size_bytes: this.getRandomSize()
+            size_bytes: this.getRandomSize(),
+            has_reputation_extension: messageType === 'ut_reputation',
+            reputation_payload: this.checkAndAttachReputation(messageType)
+        };
+    }
+
+    private checkAndAttachReputation(messageType: string): ReputationReceipt | undefined {
+        if (messageType === 'ut_reputation') {
+            return this.createRandomReputationReceipt();
+        }
+        return undefined;
+    }
+
+    private createRandomReputationReceipt(): ReputationReceipt {
+        const randomHex: string = Math.random().toString(16).substring(2, 10).toUpperCase();
+        return {
+            from_peer_id: `Peer_TX_${randomHex}`,
+            to_peer_id: `Peer_RX_${randomHex}`,
+            piece_index: Math.floor(Math.random() * 2000),
+            byte_count: Math.floor(Math.random() * 65536) + 1024,
+            signature: `ED25519_SIG_AB${Math.random().toString(36).substring(2, 15).toUpperCase()}F9`,
+            timestamp: new Date().toISOString()
         };
     }
 
     private getRandomDirection(): PacketDirection {
-        return Math.random() > 0.5 ? 'incoming' : 'outgoing';
+        if (Math.random() > 0.5) {
+            return 'incoming';
+        }
+        return 'outgoing';
     }
 
     private getRandomMessageType(): string {
-        const types: string[] = ['handshake', 'choke', 'unchoke', 'interested', 'bitfield', 'request', 'piece', 'cancel'];
+        const types: string[] = ['handshake', 'choke', 'unchoke', 'interested', 'request', 'piece', 'ut_reputation'];
         const index: number = Math.floor(Math.random() * types.length);
         return types[index];
     }
@@ -62,10 +87,12 @@ export class MockPacketGenerator {
     private getRandomIp(): string {
         const p1: number = Math.floor(Math.random() * 255);
         const p2: number = Math.floor(Math.random() * 255);
-        return `192.168.${p1}.${p2}`;
+        const p3: number = Math.floor(Math.random() * 255);
+        const p4: number = Math.floor(Math.random() * 255);
+        return `${p1}.${p2}.${p3}.${p4}`;
     }
 
     private getRandomSize(): number {
-        return Math.floor(Math.random() * 16384) + 16;
+        return Math.floor(Math.random() * 1500) + 40;
     }
 }
