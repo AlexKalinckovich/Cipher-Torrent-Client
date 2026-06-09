@@ -16,6 +16,10 @@ collection:
             schema:
               type: array
               items:
-                $ref: '../schemas/peer.yaml#/Peer'
+                $ref: '../openapi.yaml#/components/schemas/Peer'
       '404':
-        $ref: '../schemas/common.yaml#/ApiError'
+        description: Торрент не найден
+        content:
+          application/json:
+            schema:
+              $ref: '../openapi.yaml#/components/schemas/ApiError'

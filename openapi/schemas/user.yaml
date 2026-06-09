@@ -49,11 +49,11 @@ UserStats:
 
 UserFull:
   allOf:
-    - $ref: '#/User'
+    - $ref: '../openapi.yaml#/components/schemas/User'
     - type: object
       properties:
         stats:
-          $ref: '#/UserStats'
+          $ref: '../openapi.yaml#/components/schemas/UserStats'
         role:
           type: string
           enum: [user, admin]

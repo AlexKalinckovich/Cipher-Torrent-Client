@@ -45,4 +45,4 @@ AuthResponse:
     refresh_token:
       type: string
     user:
-      $ref: './user.yaml#/User'
+      $ref: '../openapi.yaml#/components/schemas/User'
