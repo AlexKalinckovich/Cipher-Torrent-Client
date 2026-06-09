@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, memo } from 'react';
 import { Input } from 'antd';
 import { PlayCircleOutlined, PauseCircleOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons';
 import type { InspectorToolbarProps } from '../../types/packetInspectorTypes';
@@ -12,13 +12,15 @@ const getStatusClass = (isPaused: boolean): string => {
     return `${styles.statusDot} ${styles.statusActive}`;
 };
 
-export const InspectorToolbar: React.FC<InspectorToolbarProps> = ({
-                                                                      isPaused,
-                                                                      onTogglePause,
-                                                                      onClear,
-                                                                      searchText,
-                                                                      onSearchChange
-                                                                  }) => {
+const InspectorToolbarComponent: React.FC<InspectorToolbarProps> = ({
+                                                                        isPaused,
+                                                                        onTogglePause,
+                                                                        onClear,
+                                                                        searchText,
+                                                                        onSearchChange
+                                                                    }) => {
+    console.log("-> ACTUAL Inspector Panel Render <-");
+
     const handleSearch = useCallback((e: React.ChangeEvent<HTMLInputElement>): void => {
         onSearchChange(e.target.value);
     }, [onSearchChange]);
@@ -48,3 +50,5 @@ export const InspectorToolbar: React.FC<InspectorToolbarProps> = ({
         </div>
     );
 };
+
+export const InspectorToolbar = memo(InspectorToolbarComponent);

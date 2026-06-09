@@ -1,9 +1,9 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DashboardOutlined, UserOutlined } from '@ant-design/icons';
 import styles from './InspectorNavigation.module.css';
 
-export const InspectorNavigation: React.FC = () => {
+const InspectorNavigationComponent: React.FC = () => {
     const navigate = useNavigate();
 
     const handleNavigateDashboard = useCallback((): void => {
@@ -25,3 +25,5 @@ export const InspectorNavigation: React.FC = () => {
         </div>
     );
 };
+
+export const InspectorNavigation = memo(InspectorNavigationComponent);

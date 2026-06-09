@@ -8,6 +8,7 @@ import { formatBytes } from '@/utils/DashboardScreenUtils/bytesFormatter.ts';
 import { getFilteredTorrents } from '@/utils/DashboardScreenUtils/dashboardDataFilterUtils.ts';
 import type { DashboardStats } from './types/dashboardTypes';
 
+import { useTorrentRealtime } from '@/hooks/useTorrentRealTime.ts';
 import { StatusBadge } from './components/StatusBadge/StatusBadge';
 import { ProgressBar } from './components/ProgressBar/ProgressBar';
 import { ActionButtons } from './components/ActionButtons/ActionButtons';
@@ -65,6 +66,7 @@ const notifyFilter = (status: string | null): void => {
 
 export const Dashboard: React.FC = () => {
     const { data, isLoading, error } = useTorrents();
+    useTorrentRealtime();
     const navigate = useNavigate();
     const [searchText, setSearchText] = useState<string>('');
     const [statusFilter, setStatusFilter] = useState<string | null>(null);
