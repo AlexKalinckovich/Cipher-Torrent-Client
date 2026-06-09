@@ -10,23 +10,23 @@ collection:
             schema:
               type: array
               items:
-                $ref: '../schemas/torrent.yaml#/Torrent'
+                $ref: '../openapi.yaml#/components/schemas/Torrent'
   post:
     operationId: addTorrent
-    summary: Добавить торрент по magnet-ссылке
+    summary: Добавить торрент по magnet-ссылке или файлу
     requestBody:
       required: true
       content:
         application/json:
           schema:
-            $ref: '../schemas/torrent.yaml#/TorrentAddRequest'
+            $ref: '../openapi.yaml#/components/schemas/TorrentAddRequest'
     responses:
       '202':
         description: Запрос на добавление принят
         content:
           application/json:
             schema:
-              $ref: '../schemas/torrent.yaml#/TorrentAddResponse'
+              $ref: '../openapi.yaml#/components/schemas/TorrentAddResponse'
 
 item:
   get:
@@ -44,6 +44,70 @@ item:
         content:
           application/json:
             schema:
-              $ref: '../schemas/torrent.yaml#/Torrent'
+              $ref: '../openapi.yaml#/components/schemas/Torrent'
       '404':
-        $ref: '../schemas/common.yaml#/ApiError'
+        description: Торрент не найден
+        content:
+          application/json:
+            schema:
+              $ref: '../openapi.yaml#/components/schemas/ApiError'
+
+pause:
+  post:
+    operationId: pauseTorrent
+    summary: Приостановить загрузку или раздачу торрента
+    parameters:
+      - name: infoHash
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Статус торрента успешно изменен на paused
+      '404':
+        description: Торрент не найден
+        content:
+          application/json:
+            schema:
+              $ref: '../openapi.yaml#/components/schemas/ApiError'
+
+resume:
+  post:
+    operationId: resumeTorrent
+    summary: Возобновить загрузку или раздачу торрента
+    parameters:
+      - name: infoHash
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Статус торрента успешно изменен на downloading/seeding
+      '404':
+        description: Торрент не найден
+        content:
+          application/json:
+            schema:
+              $ref: '../openapi.yaml#/components/schemas/ApiError'
+
+delete:
+  delete:
+    operationId: deleteTorrent
+    summary: Полностью удалить торрент из клиента
+    parameters:
+      - name: infoHash
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      '204':
+        description: Торрент успешно удален (No Content)
+      '404':
+        description: Торрент не найден
+        content:
+          application/json:
+            schema:
+              $ref: '../openapi.yaml#/components/schemas/ApiError'

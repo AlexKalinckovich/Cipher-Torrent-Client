@@ -8,6 +8,10 @@ profile:
         content:
           application/json:
             schema:
-              $ref: '../schemas/user.yaml#/UserFull'
+              $ref: '../openapi.yaml#/components/schemas/UserFull'
       '401':
-        $ref: '../schemas/common.yaml#/ApiError'
+        description: Не авторизован
+        content:
+          application/json:
+            schema:
+              $ref: '../openapi.yaml#/components/schemas/ApiError'

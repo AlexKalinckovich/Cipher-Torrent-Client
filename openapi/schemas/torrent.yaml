@@ -39,7 +39,7 @@ Torrent:
     files:
       type: array
       items:
-        $ref: '#/TorrentFile'
+        $ref: '../openapi.yaml#/components/schemas/TorrentFile'
     signatures_count:
       type: integer
     is_signed_by_me:
@@ -61,11 +61,15 @@ TorrentFile:
 
 TorrentAddRequest:
   type: object
-  required:
-    - magnet_uri
   properties:
     magnet_uri:
       type: string
+    file_base64:
+      type: string
+      description: Содержимое .torrent файла в формате base64
+    save_path:
+      type: string
+      description: Путь сохранения на диске (например, /downloads/cipher)
 
 TorrentAddResponse:
   type: object

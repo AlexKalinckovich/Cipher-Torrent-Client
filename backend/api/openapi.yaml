@@ -1,0 +1,796 @@
+openapi: 3.0.3
+info:
+  description: |
+    REST API для управления узлом Cipher Torrent.
+    ## Real-time Events (WebSocket) Для обеспечения реактивности интерфейса, клиент должен установить WebSocket-соединение с сервером по адресу: `ws://localhost:8080/api/v1/ws`
+    Сервер будет асинхронно пушить в этот канал события в виде JSON. Поддерживаемые типы событий (описаны в схемах): * `torrent:progress` -> **TorrentProgressEvent** (Динамическое изменение скорости и прогресса) * `torrent:signed` -> **TorrentSignedEvent** (Обнаружение новой криптографической подписи в сети) * `peer:connected` -> **PeerConnectedEvent** (Подключение нового узла) * `reputation:update` -> **ReputationUpdateEvent** (Изменение Web of Trust) * `packet` -> **PacketEvent** (Сырой дамп трафика для инспектора)
+  title: Cipher Torrent Client API
+  version: 1.0.0
+servers:
+- url: http://localhost:8080/api/v1
+security:
+- BearerAuth: []
+paths:
+  /auth/register:
+    post:
+      operationId: registerUser
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthRegisterRequest'
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /auth/login:
+    post:
+      operationId: loginUser
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthLoginRequest'
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /auth/refresh:
+    post:
+      operationId: refreshToken
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthRefreshRequest'
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /torrents:
+    get:
+      operationId: getTorrents
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/Torrent'
+                type: array
+          description: Массив торрентов
+      summary: Список всех торрентов пользователя
+    post:
+      operationId: addTorrent
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TorrentAddRequest'
+        required: true
+      responses:
+        "202":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TorrentAddResponse'
+          description: Запрос на добавление принят
+      summary: Добавить торрент по magnet-ссылке или файлу
+  /torrents/{infoHash}:
+    get:
+      operationId: getTorrent
+      parameters:
+      - in: path
+        name: infoHash
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Torrent'
+          description: Объект торрента
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+          description: Торрент не найден
+      summary: Детальная информация о торренте
+  /torrents/{infoHash}/pause:
+    post:
+      operationId: pauseTorrent
+      parameters:
+      - in: path
+        name: infoHash
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Статус торрента успешно изменен на paused
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+          description: Торрент не найден
+      summary: Приостановить загрузку или раздачу торрента
+  /torrents/{infoHash}/resume:
+    post:
+      operationId: resumeTorrent
+      parameters:
+      - in: path
+        name: infoHash
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Статус торрента успешно изменен на downloading/seeding
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+          description: Торрент не найден
+      summary: Возобновить загрузку или раздачу торрента
+  /torrents/{infoHash}/peers:
+    get:
+      operationId: getTorrentPeers
+      parameters:
+      - in: path
+        name: infoHash
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/Peer'
+                type: array
+          description: Массив пиров
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+          description: Торрент не найден
+      summary: Список пиров для указанного торрента
+  /torrents/{infoHash}/sign:
+    post:
+      operationId: signTorrent
+      parameters:
+      - in: path
+        name: infoHash
+        required: true
+        schema:
+          type: string
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SignatureCreateResponse'
+          description: Подпись создана
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+          description: Торрент не найден
+      summary: Подписать торрент своим ключом
+  /torrents/{infoHash}/signatures:
+    get:
+      operationId: getTorrentSignatures
+      parameters:
+      - in: path
+        name: infoHash
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/TorrentSignature'
+                type: array
+          description: Массив подписей
+      summary: Список подписей для торрента
+  /users/me:
+    get:
+      operationId: getMyProfile
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserFull'
+          description: Профиль пользователя
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+          description: Не авторизован
+      summary: Профиль текущего пользователя со статистикой
+components:
+  schemas:
+    User:
+      example:
+        public_key: public_key
+        nickname: nickname
+        created_at: 2000-01-23T04:56:07.000+00:00
+        id: 0
+        email: email
+      properties:
+        id:
+          format: int64
+          type: integer
+        email:
+          format: email
+          type: string
+        public_key:
+          type: string
+        nickname:
+          type: string
+        created_at:
+          format: date-time
+          type: string
+      required:
+      - created_at
+      - email
+      - id
+      - nickname
+      - public_key
+      type: object
+    UserStats:
+      example:
+        reputation_score: 5.962134
+        peers_trusted_count: 7
+        total_uploaded_bytes: 6
+        active_torrents_count: 2
+        signed_torrents_count: 5
+        total_downloaded_bytes: 1
+      properties:
+        total_uploaded_bytes:
+          format: int64
+          type: integer
+        total_downloaded_bytes:
+          format: int64
+          type: integer
+        reputation_score:
+          format: float
+          type: number
+        signed_torrents_count:
+          type: integer
+        active_torrents_count:
+          type: integer
+        peers_trusted_count:
+          type: integer
+      required:
+      - active_torrents_count
+      - peers_trusted_count
+      - reputation_score
+      - signed_torrents_count
+      - total_downloaded_bytes
+      - total_uploaded_bytes
+      type: object
+    AuthRegisterRequest:
+      example:
+        password: password
+        email: email
+      properties:
+        email:
+          format: email
+          type: string
+        password:
+          format: password
+          minLength: 8
+          type: string
+      required:
+      - email
+      - password
+      type: object
+    AuthLoginRequest:
+      example:
+        password: password
+        email: email
+      properties:
+        email:
+          format: email
+          type: string
+        password:
+          format: password
+          type: string
+      required:
+      - email
+      - password
+      type: object
+    AuthRefreshRequest:
+      example:
+        refresh_token: refresh_token
+      properties:
+        refresh_token:
+          type: string
+      required:
+      - refresh_token
+      type: object
+    AuthResponse:
+      example:
+        access_token: access_token
+        refresh_token: refresh_token
+        user:
+          public_key: public_key
+          nickname: nickname
+          created_at: 2000-01-23T04:56:07.000+00:00
+          id: 0
+          email: email
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        user:
+          $ref: '#/components/schemas/User'
+      required:
+      - access_token
+      - refresh_token
+      - user
+      type: object
+    TorrentProgressEvent:
+      properties:
+        event_type:
+          enum:
+          - torrent:progress
+          type: string
+        info_hash:
+          type: string
+        progress:
+          type: number
+        download_speed:
+          type: integer
+        upload_speed:
+          type: integer
+      required:
+      - download_speed
+      - event_type
+      - info_hash
+      - progress
+      - upload_speed
+      type: object
+    TorrentSignedEvent:
+      properties:
+        event_type:
+          enum:
+          - torrent:signed
+          type: string
+        info_hash:
+          type: string
+        signature:
+          $ref: '#/components/schemas/TorrentSignature'
+      required:
+      - event_type
+      - info_hash
+      - signature
+      type: object
+    PeerConnectedEvent:
+      properties:
+        event_type:
+          enum:
+          - peer:connected
+          type: string
+        info_hash:
+          type: string
+        peer:
+          $ref: '#/components/schemas/Peer'
+      required:
+      - event_type
+      - info_hash
+      - peer
+      type: object
+    ReputationUpdateEvent:
+      properties:
+        event_type:
+          enum:
+          - reputation:update
+          type: string
+        from_peer_id:
+          type: string
+        to_peer_id:
+          type: string
+        new_reputation_score:
+          type: number
+      required:
+      - event_type
+      - from_peer_id
+      - new_reputation_score
+      - to_peer_id
+      type: object
+    PacketEvent:
+      properties:
+        event_type:
+          enum:
+          - packet
+          type: string
+        packet:
+          $ref: '#/components/schemas/PacketLog'
+      required:
+      - event_type
+      - packet
+      type: object
+    Torrent:
+      example:
+        upload_speed_bps: 5
+        size_bytes: 6
+        signatures_count: 9
+        download_speed_bps: 5
+        added_at: 2000-01-23T04:56:07.000+00:00
+        name: name
+        progress: 1.4658129
+        files:
+        - path: path
+          size_bytes: 7
+        - path: path
+          size_bytes: 7
+        id: 0
+        info_hash: info_hash
+        piece_length: 2
+        is_signed_by_me: true
+        peers_count: 3
+        status: downloading
+      properties:
+        id:
+          format: int64
+          type: integer
+        info_hash:
+          type: string
+        name:
+          type: string
+        size_bytes:
+          format: int64
+          type: integer
+        status:
+          enum:
+          - downloading
+          - seeding
+          - paused
+          - error
+          type: string
+        progress:
+          format: float
+          type: number
+        download_speed_bps:
+          format: int64
+          type: integer
+        upload_speed_bps:
+          format: int64
+          type: integer
+        added_at:
+          format: date-time
+          type: string
+        piece_length:
+          format: int64
+          type: integer
+        files:
+          items:
+            $ref: '#/components/schemas/TorrentFile'
+          type: array
+        signatures_count:
+          type: integer
+        is_signed_by_me:
+          type: boolean
+        peers_count:
+          type: integer
+      required:
+      - added_at
+      - id
+      - info_hash
+      - name
+      - size_bytes
+      - status
+      type: object
+    TorrentFile:
+      example:
+        path: path
+        size_bytes: 7
+      properties:
+        path:
+          type: string
+        size_bytes:
+          format: int64
+          type: integer
+      required:
+      - path
+      - size_bytes
+      type: object
+    TorrentAddRequest:
+      example:
+        save_path: save_path
+        magnet_uri: magnet_uri
+        file_base64: file_base64
+      properties:
+        magnet_uri:
+          type: string
+        file_base64:
+          description: Содержимое .torrent файла в формате base64
+          type: string
+        save_path:
+          description: "Путь сохранения на диске (например, /downloads/cipher)"
+          type: string
+      type: object
+    TorrentAddResponse:
+      example:
+        info_hash: info_hash
+        status: status
+      properties:
+        status:
+          type: string
+        info_hash:
+          type: string
+      required:
+      - info_hash
+      - status
+      type: object
+    Peer:
+      example:
+        upload_speed_bps: 5
+        reputation_score: 6.0274563
+        last_seen: 2000-01-23T04:56:07.000+00:00
+        port: 0
+        connected_since: 2000-01-23T04:56:07.000+00:00
+        ip: ip
+        download_speed_bps: 1
+        flags:
+          utp: true
+          dht: true
+          pex: true
+          encryption: true
+        client_name: client_name
+        supports_ut_reputation: true
+        peer_id: peer_id
+      properties:
+        peer_id:
+          type: string
+        ip:
+          type: string
+        port:
+          format: int32
+          type: integer
+        client_name:
+          type: string
+        supports_ut_reputation:
+          type: boolean
+        reputation_score:
+          format: float
+          type: number
+        last_seen:
+          format: date-time
+          type: string
+        connected_since:
+          format: date-time
+          type: string
+        download_speed_bps:
+          format: int64
+          type: integer
+        upload_speed_bps:
+          format: int64
+          type: integer
+        flags:
+          $ref: '#/components/schemas/Peer_flags'
+      required:
+      - client_name
+      - ip
+      - peer_id
+      - port
+      - supports_ut_reputation
+      type: object
+    UserFull:
+      allOf:
+      - $ref: '#/components/schemas/User'
+      - properties:
+          stats:
+            $ref: '#/components/schemas/UserStats'
+          role:
+            enum:
+            - user
+            - admin
+            type: string
+        type: object
+      example:
+        public_key: public_key
+        role: user
+        stats:
+          reputation_score: 5.962134
+          peers_trusted_count: 7
+          total_uploaded_bytes: 6
+          active_torrents_count: 2
+          signed_torrents_count: 5
+          total_downloaded_bytes: 1
+        nickname: nickname
+        created_at: 2000-01-23T04:56:07.000+00:00
+        id: 0
+        email: email
+    PacketLog:
+      properties:
+        id:
+          format: int64
+          type: integer
+        timestamp:
+          format: date-time
+          type: string
+        direction:
+          enum:
+          - incoming
+          - outgoing
+          type: string
+        message_type:
+          description: "Тип сообщения BitTorrent (choke, unchoke, request, piece,\
+            \ ut_reputation и др.)"
+          type: string
+        peer_ip:
+          type: string
+        raw_payload_base64:
+          description: Сырой пакет в base64
+          type: string
+        parsed_info:
+          description: Человекочитаемая расшифровка
+          type: string
+        reputation_payload:
+          $ref: '#/components/schemas/ReputationReceipt'
+        size_bytes:
+          type: integer
+      required:
+      - direction
+      - has_reputation_extension
+      - id
+      - message_type
+      - raw_payload_base64
+      - timestamp
+      type: object
+    ReputationReceipt:
+      properties:
+        from_peer_id:
+          type: string
+        to_peer_id:
+          type: string
+        piece_index:
+          type: integer
+        byte_count:
+          type: integer
+        signature:
+          description: Ed25519 подпись данных квитанции
+          type: string
+        timestamp:
+          format: date-time
+          type: string
+      required:
+      - byte_count
+      - from_peer_id
+      - piece_index
+      - signature
+      - timestamp
+      - to_peer_id
+      type: object
+    TorrentSignature:
+      example:
+        signer_user_id: 0
+        signature_bytes: signature_bytes
+        signer_public_key: signer_public_key
+        is_valid: true
+        signed_at: 2000-01-23T04:56:07.000+00:00
+      properties:
+        signer_user_id:
+          format: int64
+          type: integer
+        signer_public_key:
+          type: string
+        signature_bytes:
+          type: string
+        is_valid:
+          type: boolean
+        signed_at:
+          format: date-time
+          type: string
+      required:
+      - is_valid
+      - signature_bytes
+      - signed_at
+      - signer_public_key
+      - signer_user_id
+      type: object
+    SignatureCreateResponse:
+      example:
+        signature_id: 0
+        signed_at: 2000-01-23T04:56:07.000+00:00
+      properties:
+        signature_id:
+          format: int64
+          type: integer
+        signed_at:
+          format: date-time
+          type: string
+      required:
+      - signature_id
+      - signed_at
+      type: object
+    ApiError:
+      example:
+        errorCode: errorCode
+        details:
+          key:
+          - details
+          - details
+        message: message
+        status: 6
+      properties:
+        status:
+          format: int32
+          type: integer
+        message:
+          type: string
+        errorCode:
+          type: string
+        details:
+          additionalProperties:
+            items:
+              type: string
+            type: array
+          type: object
+      required:
+      - errorCode
+      - message
+      - status
+      type: object
+    Peer_flags:
+      example:
+        utp: true
+        dht: true
+        pex: true
+        encryption: true
+      properties:
+        encryption:
+          type: boolean
+        utp:
+          type: boolean
+        dht:
+          type: boolean
+        pex:
+          type: boolean
+      type: object
+  securitySchemes:
+    BearerAuth:
+      bearerFormat: JWT
+      scheme: bearer
+      type: http

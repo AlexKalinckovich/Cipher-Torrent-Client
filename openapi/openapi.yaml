@@ -2,6 +2,19 @@ openapi: 3.0.3
 info:
   title: Cipher Torrent Client API
   version: 1.0.0
+  description: >
+    REST API для управления узлом Cipher Torrent.
+
+    ## Real-time Events (WebSocket)
+    Для обеспечения реактивности интерфейса, клиент должен установить WebSocket-соединение с сервером по адресу:
+    `ws://localhost:8080/api/v1/ws`
+
+    Сервер будет асинхронно пушить в этот канал события в виде JSON. Поддерживаемые типы событий (описаны в схемах):
+    * `torrent:progress` -> **TorrentProgressEvent** (Динамическое изменение скорости и прогресса)
+    * `torrent:signed` -> **TorrentSignedEvent** (Обнаружение новой криптографической подписи в сети)
+    * `peer:connected` -> **PeerConnectedEvent** (Подключение нового узла)
+    * `reputation:update` -> **ReputationUpdateEvent** (Изменение Web of Trust)
+    * `packet` -> **PacketEvent** (Сырой дамп трафика для инспектора)
 servers:
   - url: http://localhost:8080/api/v1
 paths:
@@ -15,6 +28,10 @@ paths:
     $ref: './paths/torrents.yaml#/collection'
   /torrents/{infoHash}:
     $ref: './paths/torrents.yaml#/item'
+  /torrents/{infoHash}/pause:
+    $ref: './paths/torrents.yaml#/pause'
+  /torrents/{infoHash}/resume:
+    $ref: './paths/torrents.yaml#/resume'
   /torrents/{infoHash}/peers:
     $ref: './paths/peers.yaml#/collection'
   /torrents/{infoHash}/sign:
@@ -29,20 +46,55 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+
   schemas:
+    User:
+      $ref: './schemas/user.yaml#/User'
+    UserStats:
+      $ref: './schemas/user.yaml#/UserStats'
+    AuthRegisterRequest:
+      $ref: "./schemas/auth.yaml#/AuthRegisterRequest"
+    AuthLoginRequest:
+      $ref: "./schemas/auth.yaml#/AuthLoginRequest"
+    AuthRefreshRequest:
+      $ref: "./schemas/auth.yaml#/AuthRefreshRequest"
+    AuthResponse:
+      $ref: "./schemas/auth.yaml#/AuthResponse"
+    # --- WebSocket Events ---
+    TorrentProgressEvent:
+      $ref: './schemas/ws-events.yaml#/TorrentProgressEvent'
+    TorrentSignedEvent:
+      $ref: './schemas/ws-events.yaml#/TorrentSignedEvent'
+    PeerConnectedEvent:
+      $ref: './schemas/ws-events.yaml#/PeerConnectedEvent'
+    ReputationUpdateEvent:
+      $ref: './schemas/ws-events.yaml#/ReputationUpdateEvent'
+    PacketEvent:
+      $ref: './schemas/ws-events.yaml#/PacketEvent'
+
+    # --- Core Models (для отображения внизу документации) ---
+    Torrent:
+      $ref: './schemas/torrent.yaml#/Torrent'
+    TorrentFile:
+      $ref: './schemas/torrent.yaml#/TorrentFile'
+    TorrentAddRequest:
+      $ref: './schemas/torrent.yaml#/TorrentAddRequest'
+    TorrentAddResponse:
+      $ref: './schemas/torrent.yaml#/TorrentAddResponse'
+    Peer:
+      $ref: './schemas/peer.yaml#/Peer'
+    UserFull:
+      $ref: './schemas/user.yaml#/UserFull'
     PacketLog:
       $ref: './schemas/packet-log.yaml#/PacketLog'
     ReputationReceipt:
       $ref: './schemas/reputation.yaml#/ReputationReceipt'
-    TorrentProgressEvent:
-      $ref: './schemas/ws-events.yaml#/TorrentProgressEvent'
-    PeerConnectedEvent:
-      $ref: './schemas/ws-events.yaml#/PeerConnectedEvent'
-    PacketEvent:
-      $ref: './schemas/ws-events.yaml#/PacketEvent'
-    ReputationUpdateEvent:
-      $ref: './schemas/ws-events.yaml#/ReputationUpdateEvent'
-    TorrentSignedEvent:
-      $ref: './schemas/ws-events.yaml#/TorrentSignedEvent'
+    TorrentSignature:
+      $ref: './schemas/signature.yaml#/TorrentSignature'
+    SignatureCreateResponse:
+      $ref: './schemas/signature.yaml#/SignatureCreateResponse'
+    ApiError:
+      $ref: './schemas/common.yaml#/ApiError'
+
 security:
   - BearerAuth: []

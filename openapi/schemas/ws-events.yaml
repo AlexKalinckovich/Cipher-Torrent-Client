@@ -32,7 +32,7 @@ PeerConnectedEvent:
     info_hash:
       type: string
     peer:
-      $ref: './peer.yaml#/Peer'
+      $ref: '../openapi.yaml#/components/schemas/Peer'
 
 PacketEvent:
   type: object
@@ -44,7 +44,7 @@ PacketEvent:
       type: string
       enum: [packet]
     packet:
-      $ref: './packet-log.yaml#/PacketLog'
+      $ref: '../openapi.yaml#/components/schemas/PacketLog'
 
 ReputationUpdateEvent:
   type: object
@@ -77,4 +77,4 @@ TorrentSignedEvent:
     info_hash:
       type: string
     signature:
-      $ref: './signature.yaml#/TorrentSignature'
+      $ref: '../openapi.yaml#/components/schemas/TorrentSignature'

@@ -29,6 +29,6 @@ PacketLog:
       type: string
       description: Человекочитаемая расшифровка
     reputation_payload:
-      $ref: './reputation.yaml#/ReputationReceipt'
+      $ref: '../openapi.yaml#/components/schemas/ReputationReceipt'
     size_bytes:
       type: integer

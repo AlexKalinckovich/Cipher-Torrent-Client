@@ -6,18 +6,18 @@ register:
       content:
         application/json:
           schema:
-            $ref: '../schemas/auth.yaml#/AuthRegisterRequest'
+            $ref: '../openapi.yaml#/components/schemas/AuthRegisterRequest'
     responses:
       '201':
         content:
           application/json:
             schema:
-              $ref: '../schemas/auth.yaml#/AuthResponse'
+              $ref: '../openapi.yaml#/components/schemas/AuthResponse'
       '400':
         content:
           application/json:
             schema:
-              $ref: '../schemas/common.yaml#/ApiError'
+              $ref: '../openapi.yaml#/components/schemas/ApiError'
 
 login:
   post:
@@ -27,18 +27,18 @@ login:
       content:
         application/json:
           schema:
-            $ref: '../schemas/auth.yaml#/AuthLoginRequest'
+            $ref: '../openapi.yaml#/components/schemas/AuthLoginRequest'
     responses:
       '200':
         content:
           application/json:
             schema:
-              $ref: '../schemas/auth.yaml#/AuthResponse'
+              $ref: '../openapi.yaml#/components/schemas/AuthResponse'
       '401':
         content:
           application/json:
             schema:
-              $ref: '../schemas/common.yaml#/ApiError'
+              $ref: '../openapi.yaml#/components/schemas/ApiError'
 
 refresh:
   post:
@@ -48,15 +48,15 @@ refresh:
       content:
         application/json:
           schema:
-            $ref: '../schemas/auth.yaml#/AuthRefreshRequest'
+            $ref: '../openapi.yaml#/components/schemas/AuthRefreshRequest'
     responses:
       '200':
         content:
           application/json:
             schema:
-              $ref: '../schemas/auth.yaml#/AuthResponse'
+              $ref: '../openapi.yaml#/components/schemas/AuthResponse'
       '401':
         content:
           application/json:
             schema:
-              $ref: '../schemas/common.yaml#/ApiError'
+              $ref: '../openapi.yaml#/components/schemas/ApiError'
