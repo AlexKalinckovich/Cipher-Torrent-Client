@@ -1,4 +1,4 @@
-module github.com/AlexKalinckovich/Cipher-Torrent-Client
+module github.com/AlexKalinckovich/Cipher-Torrent-Client/backend
 
 go 1.25.0
 
