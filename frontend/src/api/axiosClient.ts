@@ -5,7 +5,8 @@ import axios, {
     type AxiosResponse
 } from 'axios';
 import { TokenRepository } from './tokenRepository';
-import type {AuthResponse, AuthRefreshRequest} from '../types/model/models.ts';
+import type { AuthResponse, AuthRefreshRequest } from '../types/model/models.ts';
+import { MockServer } from '@/mocks/mock-servert.ts';
 
 export class HttpClient {
     public static readonly responsibility = "Configured Axios instance with automated authentication headers and token refresh logic";
@@ -76,4 +77,10 @@ export class HttpClient {
     }
 }
 
-export const api = new HttpClient().getInstance();
+export const api: AxiosInstance = new HttpClient().getInstance();
+
+const isDev: boolean = import.meta.env ? import.meta.env.DEV : true;
+
+if (isDev) {
+    new MockServer(api);
+}

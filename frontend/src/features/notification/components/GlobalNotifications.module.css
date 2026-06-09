@@ -64,3 +64,22 @@
     font-size: 12px;
     font-weight: 700;
 }
+
+.toastSigned {
+    background: rgba(10, 5, 15, 0.95) !important;
+    border: 1px solid #8b5cf6 !important;
+    border-left: 4px solid #8b5cf6 !important;
+    box-shadow: 0 0 20px rgba(139, 92, 246, 0.3) !important;
+    border-radius: 8px !important;
+    backdrop-filter: blur(10px) !important;
+    -webkit-backdrop-filter: blur(10px) !important;
+}
+
+.titleSigned {
+    color: #c4b5fd;
+    font-weight: 900;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    font-family: ui-monospace, Consolas, monospace;
+    text-shadow: 0 0 8px rgba(196, 181, 253, 0.6);
+}

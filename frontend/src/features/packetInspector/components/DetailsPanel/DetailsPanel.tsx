@@ -4,6 +4,7 @@ import { EmptyDetailsPanel } from './EmptyDetailsPanel';
 import { ActiveDetailsPanel } from './ActiveDetailsPanel';
 
 const DetailsPanelComponent: React.FC<DetailsPanelProps> = ({ packet }: DetailsPanelProps) => {
+
     if (!packet) {
         return <EmptyDetailsPanel />;
     }
@@ -11,6 +12,7 @@ const DetailsPanelComponent: React.FC<DetailsPanelProps> = ({ packet }: DetailsP
 };
 
 const areDetailsEqual = (prevProps: DetailsPanelProps, nextProps: DetailsPanelProps): boolean => {
+
     const isBothNull: boolean = prevProps.packet === null && nextProps.packet === null;
     if (isBothNull) {
         return true;

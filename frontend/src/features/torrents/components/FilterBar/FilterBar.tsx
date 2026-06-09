@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, memo } from 'react';
 import { Input } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import type { FilterBarProps, FilterButtonProps } from '@/features/torrents/types/dashboardTypes';
@@ -16,14 +16,15 @@ const FilterButton: React.FC<FilterButtonProps> = ({ label, isActive, onClick, b
     );
 };
 
-export const FilterBar: React.FC<FilterBarProps> = ({
-                                                        currentFilter,
-                                                        searchText,
-                                                        onFilterChange,
-                                                        onSearchChange,
-                                                        baseClassName,
-                                                        activeClassName
-                                                    }) => {
+const FilterBarComponent: React.FC<FilterBarProps> = ({
+                                                          currentFilter,
+                                                          searchText,
+                                                          onFilterChange,
+                                                          onSearchChange,
+                                                          baseClassName,
+                                                          activeClassName
+                                                      }) => {
+
     const handleFilterAll = useCallback((): void => {
         onFilterChange(null);
     }, [onFilterChange]);
@@ -67,3 +68,5 @@ export const FilterBar: React.FC<FilterBarProps> = ({
         </div>
     );
 };
+
+export const FilterBar = memo(FilterBarComponent);

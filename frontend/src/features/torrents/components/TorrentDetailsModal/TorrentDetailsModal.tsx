@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, memo } from 'react';
 import { CloseOutlined } from '@ant-design/icons';
 import type { Torrent } from '@/types/model/models.ts';
 import { formatBytes } from '@/utils/DashboardScreenUtils/bytesFormatter.ts';
@@ -42,7 +42,7 @@ const getPieceSizeText = (bytes: number | undefined): string => {
     return `PIECE SIZE: ${formatBytes(bytes)}`;
 };
 
-export const TorrentDetailsModal: React.FC<TorrentDetailsModalProps> = ({ torrent, onClose }) => {
+const TorrentDetailsModalComponent: React.FC<TorrentDetailsModalProps> = ({ torrent, onClose }) => {
     const [activeTab, setActiveTab] = useState<TabKey>('files');
 
     const handleSetFiles = useCallback((): void => setActiveTab('files'), []);
@@ -79,3 +79,9 @@ export const TorrentDetailsModal: React.FC<TorrentDetailsModalProps> = ({ torren
         </div>
     );
 };
+
+const areModalPropsEqual = (prevProps: TorrentDetailsModalProps, nextProps: TorrentDetailsModalProps): boolean => {
+    return prevProps.torrent?.info_hash === nextProps.torrent?.info_hash;
+};
+
+export const TorrentDetailsModal = memo(TorrentDetailsModalComponent, areModalPropsEqual);

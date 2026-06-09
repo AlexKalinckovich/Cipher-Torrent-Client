@@ -1,9 +1,9 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { UserOutlined } from '@ant-design/icons';
 import styles from './ProfileLink.module.css';
 
-export const ProfileLink: React.FC = () => {
+const ProfileLinkComponent: React.FC = () => {
     const navigate = useNavigate();
 
     const handleNavigate = useCallback((): void => {
@@ -18,3 +18,5 @@ export const ProfileLink: React.FC = () => {
         </div>
     );
 };
+
+export const ProfileLink = memo(ProfileLinkComponent);

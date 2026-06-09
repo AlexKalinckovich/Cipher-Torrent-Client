@@ -1,8 +1,8 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import {type NavigateFunction, useNavigate} from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { RightOutlined } from '@ant-design/icons';
 import { message, Skeleton } from 'antd';
-import { useTorrents } from '@/hooks/useTorrents.ts';
+import { useTorrents, useAddTorrent } from '@/hooks/useTorrents.ts';
 import type { Torrent, TorrentAddRequest } from '@/types/model/models.ts';
 import { AddTorrentModal } from '@/features/torrents/components/AddTorrentModal/AddTorrentModal';
 import { RecentTorrentsHeader } from './RecentTorrentsHeader';
@@ -19,11 +19,12 @@ const getSortedTorrents = (data: Torrent[] | undefined): Torrent[] => {
 };
 
 export const ProfileRecentTorrents: React.FC = () => {
-    const navigate: NavigateFunction = useNavigate();
+    const navigate = useNavigate();
     const { data, isLoading } = useTorrents();
+    const { mutate: addTorrent } = useAddTorrent();
     const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
 
-    const recentTorrents: Torrent[] = useMemo((): Torrent[] => {
+    const recentTorrents = useMemo((): Torrent[] => {
         const sorted: Torrent[] = getSortedTorrents(data);
         return sorted.slice(0, 3);
     }, [data]);
@@ -37,9 +38,15 @@ export const ProfileRecentTorrents: React.FC = () => {
     }, []);
 
     const handleSubmitAdd = useCallback((request: TorrentAddRequest): void => {
-        void message.success('NEW TORRENT SUBMITTED TO NETWORK QUEUE');
-        console.log('Payload:', request);
-    }, []);
+        addTorrent(request, {
+            onSuccess: (): void => {
+                void message.success('NEW TORRENT SUBMITTED TO NETWORK QUEUE');
+            },
+            onError: (error: Error): void => {
+                void message.error(`FAILED TO ADD TORRENT: ${error.message}`);
+            }
+        });
+    }, [addTorrent]);
 
     const handleRemove = useCallback((e: React.MouseEvent, name: string): void => {
         e.stopPropagation();
