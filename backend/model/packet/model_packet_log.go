@@ -10,7 +10,7 @@
 package packet
 
 import (
-	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/go/reputation"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/model/reputation"
 	"time"
 )
 
