@@ -9,7 +9,7 @@
 
 package auth
 
-import "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/go/user"
+import "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/model/user"
 
 type AuthResponse struct {
 	AccessToken string `json:"access_token"`

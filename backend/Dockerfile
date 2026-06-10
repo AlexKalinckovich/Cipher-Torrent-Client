@@ -1,6 +1,6 @@
 FROM golang:1.19 AS build
 WORKDIR /go/src
-COPY go ./go
+COPY model ./go
 COPY main.go .
 COPY go.sum .
 COPY go.mod .
@@ -11,6 +11,6 @@ RUN go build -o openapi .
 
 FROM scratch AS runtime
 ENV GIN_MODE=release
-COPY --from=build /go/src/openapi ./
+COPY --from=build /model/src/openapi ./
 EXPOSE 8080/tcp
 ENTRYPOINT ["./openapi"]
