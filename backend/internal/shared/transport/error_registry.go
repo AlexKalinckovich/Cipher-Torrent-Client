@@ -46,7 +46,9 @@ func DefaultFallbackHandler(_ error) HTTPResponse {
 
 func (r *ErrorRegistry) Translate(err error) HTTPResponse {
 	code := ExtractErrorCode(err)
+
 	handler := r.ResolveHandler(code)
+
 	return handler(err)
 }
 
@@ -62,11 +64,14 @@ func ExtractErrorCode(err error) customErrors.ErrorCode {
 
 func (r *ErrorRegistry) ResolveHandler(code customErrors.ErrorCode) ErrorHandler {
 	r.mu.RLock()
+
 	defer r.mu.RUnlock()
 
 	handler, exists := r.handlers[code]
+
 	if exists {
 		return handler
 	}
+
 	return r.fallback
 }
