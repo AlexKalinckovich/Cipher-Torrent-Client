@@ -4,6 +4,7 @@ import (
 	"errors"
 	customErrors "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/custom_errors/abstract_error_code"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/custom_errors/transport"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/model/common"
 	"net/http"
 	"sync"
 )
@@ -38,40 +39,33 @@ func (r *ErrorRegistry) Register(code customErrors.ErrorCode, handler ErrorHandl
 }
 
 func DefaultFallbackHandler(_ error) HTTPResponse {
-	return NewHTTPResponse(http.StatusInternalServerError, map[string]any{
-		"code":    transport.InternalErrorCode,
-		"message": "unexpected internal server error",
+	return NewHTTPResponse(http.StatusInternalServerError, common.ApiError{
+		Status:    http.StatusInternalServerError,
+		ErrorCode: string(transport.InternalErrorCode),
+		Message:   "unexpected internal server error",
 	})
 }
 
 func (r *ErrorRegistry) Translate(err error) HTTPResponse {
 	code := ExtractErrorCode(err)
-
 	handler := r.ResolveHandler(code)
-
 	return handler(err)
 }
 
 func ExtractErrorCode(err error) customErrors.ErrorCode {
 	var provider ErrorCodeProvider
-
 	if errors.As(err, &provider) {
 		return provider.Code()
 	}
-
 	return transport.InternalErrorCode
 }
 
 func (r *ErrorRegistry) ResolveHandler(code customErrors.ErrorCode) ErrorHandler {
 	r.mu.RLock()
-
 	defer r.mu.RUnlock()
-
 	handler, exists := r.handlers[code]
-
 	if exists {
 		return handler
 	}
-
 	return r.fallback
 }
