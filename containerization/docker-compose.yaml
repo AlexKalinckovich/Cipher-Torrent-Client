@@ -1,0 +1,14 @@
+services:
+  db:
+    image: mysql:8.0
+    command: >
+      --innodb-buffer-pool-size=64M
+      --innodb-log-buffer-size=32M
+      --max-connections=10
+      --key-buffer-size=15M
+      --performance_schema=OFF
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_DATABASE}
+    ports:
+      - "${DB_PORT}:3306"
