@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/base64"
 	serviceUser "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/user"
 	userModel "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/model/user"
 	"github.com/gin-gonic/gin"
@@ -20,24 +21,21 @@ func bindJSON[T any](c *gin.Context) bindResult[T] {
 }
 
 type CreateUserRequest struct {
-	Email     string `json:"email"`
-	PublicKey string `json:"public_key"`
-	Nickname  string `json:"nickname"`
-	Role      string `json:"role"`
+	Email    string `json:"email"`
+	Nickname string `json:"nickname"`
+	Role     string `json:"role"`
 }
 
 type UpdateUserRequest struct {
-	Email     string `json:"email"`
-	PublicKey string `json:"public_key"`
-	Nickname  string `json:"nickname"`
-	Role      string `json:"role"`
+	Email    string `json:"email"`
+	Nickname string `json:"nickname"`
+	Role     string `json:"role"`
 }
 
 type PatchUserRequest struct {
-	Email     *string `json:"email,omitempty"`
-	PublicKey *string `json:"public_key,omitempty"`
-	Nickname  *string `json:"nickname,omitempty"`
-	Role      *string `json:"role,omitempty"`
+	Email    *string `json:"email,omitempty"`
+	Nickname *string `json:"nickname,omitempty"`
+	Role     *string `json:"role,omitempty"`
 }
 
 type UserHandler struct {
@@ -53,6 +51,9 @@ func (h *UserHandler) RegisterRoutes(rg *gin.RouterGroup) {
 	{
 		users.POST("", h.Create)
 		users.GET("/:id", h.Get)
+		users.GET("/email/:email", h.GetByEmail)
+		users.GET("/nickname/:nickname", h.GetByNickname)
+		users.GET("/public-key/*key", h.GetByPublicKey)
 		users.PUT("/:id", h.Update)
 		users.PATCH("/:id", h.Patch)
 		users.DELETE("/:id", h.Delete)
@@ -70,10 +71,9 @@ func (h *UserHandler) handleCreateBind(c *gin.Context, result bindResult[CreateU
 		return
 	}
 	params := serviceUser.CreateUserInput{
-		Email:     result.Value.Email,
-		PublicKey: result.Value.PublicKey,
-		Nickname:  result.Value.Nickname,
-		Role:      result.Value.Role,
+		Email:    result.Value.Email,
+		Nickname: result.Value.Nickname,
+		Role:     result.Value.Role,
 	}
 	res, err := h.service.Create(c.Request.Context(), params)
 	h.handleCreateResult(c, res, err)
@@ -109,6 +109,37 @@ func (h *UserHandler) handleGetResult(c *gin.Context, res userModel.UserFull, er
 	c.JSON(http.StatusOK, res)
 }
 
+func (h *UserHandler) GetByEmail(c *gin.Context) {
+	email := c.Param("email")
+	res, err := h.service.GetByEmail(c.Request.Context(), email)
+	h.handleGetResult(c, res, err)
+}
+
+func (h *UserHandler) GetByNickname(c *gin.Context) {
+	nickname := c.Param("nickname")
+	res, err := h.service.GetByNickname(c.Request.Context(), nickname)
+	h.handleGetResult(c, res, err)
+}
+
+func (h *UserHandler) GetByPublicKey(c *gin.Context) {
+	keyParam := c.Param("key")
+	if len(keyParam) > 0 && keyParam[0] == '/' {
+		keyParam = keyParam[1:]
+	}
+
+	keyBytes, err := base64.StdEncoding.DecodeString(keyParam)
+	h.handlePublicKeyDecode(c, keyBytes, err)
+}
+
+func (h *UserHandler) handlePublicKeyDecode(c *gin.Context, keyBytes []byte, err error) {
+	if err != nil {
+		h.fail(c, err)
+		return
+	}
+	res, serviceErr := h.service.GetByPublicKey(c.Request.Context(), keyBytes)
+	h.handleGetResult(c, res, serviceErr)
+}
+
 func (h *UserHandler) Update(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	h.handleUpdateID(c, id, err)
@@ -129,10 +160,9 @@ func (h *UserHandler) handleUpdateBind(c *gin.Context, id int64, result bindResu
 		return
 	}
 	params := serviceUser.UpdateUserInput{
-		Email:     result.Value.Email,
-		PublicKey: result.Value.PublicKey,
-		Nickname:  result.Value.Nickname,
-		Role:      result.Value.Role,
+		Email:    result.Value.Email,
+		Nickname: result.Value.Nickname,
+		Role:     result.Value.Role,
 	}
 	res, err := h.service.Update(c.Request.Context(), id, params)
 	h.handleUpdateResult(c, res, err)
@@ -166,10 +196,9 @@ func (h *UserHandler) handlePatchBind(c *gin.Context, id int64, result bindResul
 		return
 	}
 	fields := serviceUser.PatchUserFields{
-		Email:     result.Value.Email,
-		PublicKey: result.Value.PublicKey,
-		Nickname:  result.Value.Nickname,
-		Role:      result.Value.Role,
+		Email:    result.Value.Email,
+		Nickname: result.Value.Nickname,
+		Role:     result.Value.Role,
 	}
 	res, err := h.service.Patch(c.Request.Context(), id, fields)
 	h.handlePatchResult(c, res, err)

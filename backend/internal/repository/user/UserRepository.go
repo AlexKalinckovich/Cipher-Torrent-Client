@@ -4,7 +4,8 @@ import (
 	"context"
 	"database/sql"
 	repositoryErrors "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/repository/user/repository_errors"
-	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/user/generated"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/user"
+	generated "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/user/generated"
 )
 
 type UserRepository struct {
@@ -23,53 +24,86 @@ func NewUserRepository(database *sql.DB, queries *generated.Queries) *UserReposi
 
 func (r *UserRepository) Create(ctx context.Context, arg generated.CreateUserParams) (generated.User, error) {
 	executor := NewUserCreateExecutor(ctx, r.database, r.queries)
-	return executor.Execute(arg)
+	res, err := executor.Execute(arg)
+	return translateResult(res, err, r.translator)
 }
 
 func (r *UserRepository) GetByID(ctx context.Context, id int64) (generated.User, error) {
 	res, err := r.queries.GetUserByID(ctx, id)
-	return r.handleUserResult(res, err)
+	return translateResult(res, err, r.translator)
 }
 
 func (r *UserRepository) GetByEmail(ctx context.Context, email string) (generated.User, error) {
 	res, err := r.queries.GetUserByEmail(ctx, email)
-	return r.handleUserResult(res, err)
+	return translateResult(res, err, r.translator)
 }
 
-func (r *UserRepository) GetByPublicKey(ctx context.Context, publicKey string) (generated.User, error) {
+func (r *UserRepository) GetByNickname(ctx context.Context, nickname string) (generated.User, error) {
+	res, err := r.queries.GetUserByNickname(ctx, nickname)
+	return translateResult(res, err, r.translator)
+}
+
+func (r *UserRepository) GetByPublicKey(ctx context.Context, publicKey []byte) (generated.User, error) {
 	res, err := r.queries.GetUserByPublicKey(ctx, publicKey)
-	return r.handleUserResult(res, err)
-}
-
-func (r *UserRepository) handleUserResult(res generated.User, err error) (generated.User, error) {
-	translated := r.translator.TranslateUserError(err)
-	if translated != nil {
-		return generated.User{}, translated
-	}
-	return res, nil
+	return translateResult(res, err, r.translator)
 }
 
 func (r *UserRepository) GetStatsByUserID(ctx context.Context, userID int64) (generated.UserStat, error) {
 	res, err := r.queries.GetUserStatsByUserID(ctx, userID)
-	return r.handleStatsResult(res, err)
+	return translateResult(res, err, r.translator)
 }
 
-func (r *UserRepository) handleStatsResult(res generated.UserStat, err error) (generated.UserStat, error) {
-	translated := r.translator.TranslateUserError(err)
-	if translated != nil {
-		return generated.UserStat{}, translated
+func (r *UserRepository) Update(ctx context.Context, arg generated.UpdateUserParams) error {
+	err := r.queries.UpdateUser(ctx, arg)
+	return r.translator.TranslateUserError(err)
+}
+
+func (r *UserRepository) Patch(ctx context.Context, id int64, fields user.PatchUserFields) error {
+	params := r.buildPatchParams(id, fields)
+	err := r.queries.PatchUser(ctx, params)
+	return r.translator.TranslateUserError(err)
+}
+
+func (r *UserRepository) UpdateStats(ctx context.Context, arg generated.UpdateUserStatsParams) error {
+	err := r.queries.UpdateUserStats(ctx, arg)
+	return r.translator.TranslateUserError(err)
+}
+
+func (r *UserRepository) Delete(ctx context.Context, id int64) error {
+	err := r.queries.DeleteUser(ctx, id)
+	return r.translator.TranslateUserError(err)
+}
+
+func (r *UserRepository) buildPatchParams(id int64, fields user.PatchUserFields) generated.PatchUserParams {
+	return generated.PatchUserParams{
+		ID:       id,
+		Email:    toNullString(fields.Email),
+		Nickname: toNullString(fields.Nickname),
+		Role:     toNullRole(fields.Role),
+	}
+}
+
+func translateResult[T any](res T, err error, translator repositoryErrors.UserErrorTranslator) (T, error) {
+	if translatedErr := translator.TranslateUserError(err); translatedErr != nil {
+		var zero T
+		return zero, translatedErr
 	}
 	return res, nil
 }
 
-func (r *UserRepository) Update(ctx context.Context, arg generated.UpdateUserParams) error {
-	return r.queries.UpdateUser(ctx, arg)
+func toNullString(s *string) sql.NullString {
+	if s == nil {
+		return sql.NullString{}
+	}
+	return sql.NullString{String: *s, Valid: true}
 }
 
-func (r *UserRepository) UpdateStats(ctx context.Context, arg generated.UpdateUserStatsParams) error {
-	return r.queries.UpdateUserStats(ctx, arg)
-}
-
-func (r *UserRepository) Delete(ctx context.Context, id int64) error {
-	return r.queries.DeleteUser(ctx, id)
+func toNullRole(s *string) generated.NullUsersRole {
+	if s == nil {
+		return generated.NullUsersRole{}
+	}
+	return generated.NullUsersRole{
+		UsersRole: generated.UsersRole(*s),
+		Valid:     true,
+	}
 }
