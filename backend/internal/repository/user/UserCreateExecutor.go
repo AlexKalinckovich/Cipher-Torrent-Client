@@ -3,8 +3,9 @@ package user
 import (
 	"context"
 	"database/sql"
+
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/repository/tx"
-	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/user/generated"
+	generated "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/user/generated"
 )
 
 type UserCreateExecutor struct {
@@ -26,8 +27,8 @@ func NewUserCreateExecutor(
 }
 
 func (e *UserCreateExecutor) Execute(arg generated.CreateUserParams) (generated.User, error) {
-	tx, err := e.database.BeginTx(e.ctx, nil)
-	return e.tryInsertUser(tx, arg, err)
+	beginTx, err := e.database.BeginTx(e.ctx, nil)
+	return e.tryInsertUser(beginTx, arg, err)
 }
 
 func (e *UserCreateExecutor) tryInsertUser(
@@ -97,11 +98,12 @@ func (e *UserCreateExecutor) commit(
 
 func buildUser(id int64, arg generated.CreateUserParams) generated.User {
 	return generated.User{
-		ID:        id,
-		Email:     arg.Email,
-		PublicKey: arg.PublicKey,
-		Nickname:  arg.Nickname,
-		Role:      arg.Role,
-		CreatedAt: arg.CreatedAt,
+		ID:            id,
+		Email:         arg.Email,
+		PublicKey:     arg.PublicKey,
+		PrivateKeyEnc: arg.PrivateKeyEnc,
+		Nickname:      arg.Nickname,
+		Role:          arg.Role,
+		CreatedAt:     arg.CreatedAt,
 	}
 }

@@ -1,8 +1,10 @@
 package user
 
 import (
+	"encoding/base64"
+
 	db "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/user/generated"
-	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/model/user"
+	userModel "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/model/user"
 )
 
 type UserDTOMapper struct{}
@@ -11,32 +13,29 @@ func NewUserDTOMapper() *UserDTOMapper {
 	return &UserDTOMapper{}
 }
 
-func (m *UserDTOMapper) ToUserFullDTO(u db.User, s db.UserStat) user.UserFull {
+func (m *UserDTOMapper) ToUserFullDTO(u db.User, s db.UserStat) userModel.UserFull {
 	base := m.toUserDTO(u)
 	stats := m.toUserStatsDTO(s)
-	return user.UserFull{
-		Id:        base.Id,
-		Email:     base.Email,
-		PublicKey: base.PublicKey,
-		Nickname:  base.Nickname,
-		CreatedAt: base.CreatedAt,
-		Role:      string(u.Role),
-		Stats:     stats,
+	return userModel.UserFull{
+		User:  base,
+		Role:  string(u.Role),
+		Stats: stats,
 	}
 }
 
-func (m *UserDTOMapper) toUserDTO(src db.User) user.User {
-	return user.User{
+func (m *UserDTOMapper) toUserDTO(src db.User) userModel.User {
+	encodedToStringPublicKey := base64.StdEncoding.EncodeToString(src.PublicKey)
+	return userModel.User{
 		Id:        src.ID,
 		Email:     src.Email,
-		PublicKey: src.PublicKey,
+		PublicKey: encodedToStringPublicKey,
 		Nickname:  src.Nickname,
 		CreatedAt: src.CreatedAt,
 	}
 }
 
-func (m *UserDTOMapper) toUserStatsDTO(src db.UserStat) user.UserStats {
-	return user.UserStats{
+func (m *UserDTOMapper) toUserStatsDTO(src db.UserStat) userModel.UserStats {
+	return userModel.UserStats{
 		TotalUploadedBytes:   src.TotalUploadedBytes,
 		TotalDownloadedBytes: src.TotalDownloadedBytes,
 		ReputationScore:      float32(src.ReputationScore),

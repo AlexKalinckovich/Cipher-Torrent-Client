@@ -4,6 +4,11 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/custom_errors/not_found"
+	"net/http"
+	"os"
+	"time"
+
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/handlers"
 	userDtoMapper "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/mapper/user"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/middleware"
@@ -11,22 +16,21 @@ import (
 	repositoryErrors "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/repository/user/repository_errors"
 	userService "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/user"
 	db "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/user/generated"
-	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/custom_errors/not_found"
-	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/custom_errors/repository_errors"
+	sharedRepositoryErrors "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/custom_errors/repository_errors"
+	serviceErrors "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/custom_errors/service_errors"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/custom_errors/validation"
+	crypto "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/security"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/transport"
 	userValidator "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/validator/user"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/model/common"
 	"github.com/gin-gonic/gin"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/joho/godotenv"
-	"net/http"
-	"os"
-	"time"
 )
 
 func main() {
 	err := godotenv.Load("../containerization/.env")
+
 	handleInitError(err)
 
 	conn, connErr := sql.Open("mysql", buildDSN())
@@ -38,6 +42,7 @@ func main() {
 	engine := gin.Default()
 	registry := buildErrorRegistry()
 	engine.Use(middleware.ErrorHandlingMiddleware(registry))
+	engine.NoRoute(handleNoRoute)
 
 	v1 := engine.Group("/api/v1")
 	bootstrapUserModule(v1, conn)
@@ -46,11 +51,24 @@ func main() {
 	handleInitError(runErr)
 }
 
+func handleNoRoute(c *gin.Context) {
+	c.JSON(http.StatusNotFound, common.ApiError{
+		Status:    http.StatusNotFound,
+		ErrorCode: "ROUTE_NOT_FOUND",
+		Message:   "the requested route does not exist",
+	})
+}
+
 func buildErrorRegistry() *transport.ErrorRegistry {
 	registry := transport.NewErrorRegistry()
 	registerValidationHandler(registry)
 	registerRollbackHandler(registry)
 	registerUserNotFoundHandler(registry)
+	registerDuplicateEmailHandler(registry)
+	registerDuplicateNicknameHandler(registry)
+	registerDatabaseUnavailableHandler(registry)
+	registerDpkiErrorHandler(registry)
+	registerEncryptionErrorHandler(registry)
 	return registry
 }
 
@@ -69,32 +87,83 @@ func registerValidationHandler(registry *transport.ErrorRegistry) {
 	})
 }
 
-func buildValidationDetails(aggErr *validation.AggregateError) map[string][]string {
-	details := make(map[string][]string, len(aggErr.Errors))
-	for _, fe := range aggErr.Errors {
-		details[fe.Field] = append(details[fe.Field], fe.Message)
-	}
-	return details
-}
-
 func registerRollbackHandler(registry *transport.ErrorRegistry) {
-	registry.Register(repository_errors.RollbackErrorCode, func(err error) transport.HTTPResponse {
+	registry.Register(sharedRepositoryErrors.RollbackErrorCode, func(err error) transport.HTTPResponse {
 		return transport.NewHTTPResponse(http.StatusInternalServerError, common.ApiError{
 			Status:    http.StatusInternalServerError,
-			ErrorCode: string(repository_errors.RollbackErrorCode),
+			ErrorCode: string(sharedRepositoryErrors.RollbackErrorCode),
 			Message:   "a database transaction could not be completed",
 		})
 	})
 }
 
 func registerUserNotFoundHandler(registry *transport.ErrorRegistry) {
-	registry.Register(not_found.CodeFor[repositoryErrors.UserEntity](), func(err error) transport.HTTPResponse {
+	code := not_found.CodeFor[repositoryErrors.UserEntity]()
+	registry.Register(code, func(err error) transport.HTTPResponse {
 		return transport.NewHTTPResponse(http.StatusNotFound, common.ApiError{
 			Status:    http.StatusNotFound,
-			ErrorCode: string(not_found.CodeFor[repositoryErrors.UserEntity]()),
+			ErrorCode: string(code),
 			Message:   "the requested user does not exist",
 		})
 	})
+}
+
+func registerDuplicateEmailHandler(registry *transport.ErrorRegistry) {
+	registry.Register(repositoryErrors.DuplicateEmailErrorCode, func(err error) transport.HTTPResponse {
+		return transport.NewHTTPResponse(http.StatusConflict, common.ApiError{
+			Status:    http.StatusConflict,
+			ErrorCode: string(repositoryErrors.DuplicateEmailErrorCode),
+			Message:   "a user with this email already exists",
+		})
+	})
+}
+
+func registerDuplicateNicknameHandler(registry *transport.ErrorRegistry) {
+	registry.Register(repositoryErrors.DuplicateNicknameErrorCode, func(err error) transport.HTTPResponse {
+		return transport.NewHTTPResponse(http.StatusConflict, common.ApiError{
+			Status:    http.StatusConflict,
+			ErrorCode: string(repositoryErrors.DuplicateNicknameErrorCode),
+			Message:   "a user with this nickname already exists",
+		})
+	})
+}
+
+func registerDatabaseUnavailableHandler(registry *transport.ErrorRegistry) {
+	registry.Register(repositoryErrors.DatabaseUnavailableCode, func(err error) transport.HTTPResponse {
+		return transport.NewHTTPResponse(http.StatusServiceUnavailable, common.ApiError{
+			Status:    http.StatusServiceUnavailable,
+			ErrorCode: string(repositoryErrors.DatabaseUnavailableCode),
+			Message:   "service temporarily unavailable",
+		})
+	})
+}
+
+func registerDpkiErrorHandler(registry *transport.ErrorRegistry) {
+	registry.Register(serviceErrors.DpkiErrorCode, func(err error) transport.HTTPResponse {
+		return transport.NewHTTPResponse(http.StatusInternalServerError, common.ApiError{
+			Status:    http.StatusInternalServerError,
+			ErrorCode: string(serviceErrors.DpkiErrorCode),
+			Message:   "identity key generation failed",
+		})
+	})
+}
+
+func registerEncryptionErrorHandler(registry *transport.ErrorRegistry) {
+	registry.Register(serviceErrors.EncryptionErrorCode, func(err error) transport.HTTPResponse {
+		return transport.NewHTTPResponse(http.StatusInternalServerError, common.ApiError{
+			Status:    http.StatusInternalServerError,
+			ErrorCode: string(serviceErrors.EncryptionErrorCode),
+			Message:   "key encryption failed",
+		})
+	})
+}
+
+func buildValidationDetails(aggErr *validation.AggregateError) map[string][]string {
+	details := make(map[string][]string, len(aggErr.Errors))
+	for _, fe := range aggErr.Errors {
+		details[fe.Field] = append(details[fe.Field], fe.Message)
+	}
+	return details
 }
 
 func handleInitError(err error) {
@@ -123,7 +192,18 @@ func bootstrapUserModule(rg *gin.RouterGroup, conn *sql.DB) {
 	repository := user.NewUserRepository(conn, queries)
 	validator := userValidator.NewUserValidator()
 	mapper := userDtoMapper.NewUserDTOMapper()
-	service := userService.NewUserService(repository, mapper, validator)
+
+	masterKey := os.Getenv("AES_MASTER_KEY")
+	if masterKey == "" {
+		panic("AES_MASTER_KEY environment variable is not set")
+	}
+
+	cr, err := crypto.NewCryptoService(masterKey)
+	if err != nil {
+		panic(fmt.Sprintf("failed to initialize crypto service: %v", err))
+	}
+
+	service := userService.NewUserService(repository, mapper, validator, cr)
 	handler := handlers.NewUserHandler(service)
 	handler.RegisterRoutes(rg)
 }

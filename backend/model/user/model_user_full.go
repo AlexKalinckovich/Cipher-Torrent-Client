@@ -9,22 +9,8 @@
 
 package user
 
-import (
-	"time"
-)
-
 type UserFull struct {
-	Id int64 `json:"id"`
-
-	Email string `json:"email"`
-
-	PublicKey string `json:"public_key"`
-
-	Nickname string `json:"nickname"`
-
-	CreatedAt time.Time `json:"created_at"`
-
+	User
+	Role  string    `json:"role,omitempty"`
 	Stats UserStats `json:"stats,omitempty"`
-
-	Role string `json:"role,omitempty"`
 }

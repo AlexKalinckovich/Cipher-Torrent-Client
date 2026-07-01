@@ -2,65 +2,96 @@ package user
 
 import (
 	"context"
-	db "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/user/generated"
-	userModel "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/model/user"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/security"
 	"time"
+
+	db "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/user/generated"
+	serviceErrors "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/custom_errors/service_errors"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/dpki"
+	userModel "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/model/user"
 )
 
 type UserService struct {
 	repository UserRepositoryPort
 	mapper     UserMapperPort
 	validator  UserValidatorPort
+	crypto     security.CryptoServicePort
 }
 
 func NewUserService(
 	repository UserRepositoryPort,
 	mapper UserMapperPort,
 	validator UserValidatorPort,
+	crypto security.CryptoServicePort,
 ) *UserService {
 	return &UserService{
 		repository: repository,
 		mapper:     mapper,
 		validator:  validator,
+		crypto:     crypto,
 	}
 }
 
 func (s *UserService) Create(ctx context.Context, params CreateUserInput) (userModel.UserFull, error) {
-	err := s.validator.ValidateCreate(params)
-	return s.handleCreateValidation(ctx, params, err)
-}
+	if err := s.validator.ValidateCreate(params); err != nil {
+		return userModel.UserFull{}, err
+	}
 
-func (s *UserService) handleCreateValidation(
-	ctx context.Context,
-	params CreateUserInput,
-	err error,
-) (userModel.UserFull, error) {
+	keyPair, err := dpki.GenerateIdentity()
+	if err != nil {
+		return userModel.UserFull{}, serviceErrors.NewDpkiError(err)
+	}
+
+	encryptedKey, err := s.crypto.EncryptPrivateKey(keyPair.PrivateKey)
+	if err != nil {
+		return userModel.UserFull{}, serviceErrors.NewEncryptionError(err)
+	}
+
+	userRow, err := s.repository.Create(ctx, s.buildCreateParams(params, keyPair, encryptedKey))
 	if err != nil {
 		return userModel.UserFull{}, err
 	}
-	userRow, repoErr := s.repository.Create(ctx, db.CreateUserParams{
-		Email:     params.Email,
-		PublicKey: params.PublicKey,
-		Nickname:  params.Nickname,
-		Role:      db.UsersRole(params.Role),
-		CreatedAt: time.Now(),
-	})
-	return s.handleCreateResult(ctx, userRow, repoErr)
+
+	return s.fetchUserFull(ctx, userRow)
 }
 
-func (s *UserService) handleCreateResult(ctx context.Context, userRow db.User, err error) (userModel.UserFull, error) {
+func (s *UserService) buildCreateParams(params CreateUserInput, keyPair *dpki.KeyPair, encryptedKey []byte) db.CreateUserParams {
+	return db.CreateUserParams{
+		Email:         params.Email,
+		PublicKey:     keyPair.PublicKey,
+		PrivateKeyEnc: encryptedKey,
+		Nickname:      params.Nickname,
+		Role:          db.UsersRole(params.Role),
+		CreatedAt:     time.Now(),
+	}
+}
+
+func (s *UserService) Get(ctx context.Context, id int64) (userModel.UserFull, error) {
+	userRow, err := s.repository.GetByID(ctx, id)
 	if err != nil {
 		return userModel.UserFull{}, err
 	}
 	return s.fetchUserFull(ctx, userRow)
 }
 
-func (s *UserService) Get(ctx context.Context, id int64) (userModel.UserFull, error) {
-	userRow, err := s.repository.GetByID(ctx, id)
-	return s.handleGetResult(ctx, userRow, err)
+func (s *UserService) GetByEmail(ctx context.Context, email string) (userModel.UserFull, error) {
+	userRow, err := s.repository.GetByEmail(ctx, email)
+	if err != nil {
+		return userModel.UserFull{}, err
+	}
+	return s.fetchUserFull(ctx, userRow)
 }
 
-func (s *UserService) handleGetResult(ctx context.Context, userRow db.User, err error) (userModel.UserFull, error) {
+func (s *UserService) GetByNickname(ctx context.Context, nickname string) (userModel.UserFull, error) {
+	userRow, err := s.repository.GetByNickname(ctx, nickname)
+	if err != nil {
+		return userModel.UserFull{}, err
+	}
+	return s.fetchUserFull(ctx, userRow)
+}
+
+func (s *UserService) GetByPublicKey(ctx context.Context, publicKey []byte) (userModel.UserFull, error) {
+	userRow, err := s.repository.GetByPublicKey(ctx, publicKey)
 	if err != nil {
 		return userModel.UserFull{}, err
 	}
@@ -68,63 +99,54 @@ func (s *UserService) handleGetResult(ctx context.Context, userRow db.User, err 
 }
 
 func (s *UserService) Update(ctx context.Context, id int64, params UpdateUserInput) (userModel.UserFull, error) {
-	err := s.validator.ValidateUpdate(params)
-	return s.handleUpdateValidation(ctx, id, params, err)
-}
-
-func (s *UserService) handleUpdateValidation(ctx context.Context, id int64, params UpdateUserInput, err error) (userModel.UserFull, error) {
-	if err != nil {
+	if err := s.validator.ValidateUpdate(params); err != nil {
 		return userModel.UserFull{}, err
 	}
+
 	updateErr := s.repository.Update(ctx, db.UpdateUserParams{
-		ID:        id,
-		Email:     params.Email,
-		PublicKey: params.PublicKey,
-		Nickname:  params.Nickname,
-		Role:      db.UsersRole(params.Role),
+		ID:       id,
+		Email:    params.Email,
+		Nickname: params.Nickname,
+		Role:     db.UsersRole(params.Role),
 	})
-	return s.handleUpdateResult(ctx, id, updateErr)
-}
-
-func (s *UserService) handleUpdateResult(ctx context.Context, id int64, err error) (userModel.UserFull, error) {
-	if err != nil {
-		return userModel.UserFull{}, err
+	if updateErr != nil {
+		return userModel.UserFull{}, updateErr
 	}
+
 	return s.Get(ctx, id)
 }
 
 func (s *UserService) Patch(ctx context.Context, id int64, fields PatchUserFields) (userModel.UserFull, error) {
-	err := s.validator.ValidatePatch(fields)
-	return s.handlePatchValidation(ctx, id, fields, err)
-}
-
-func (s *UserService) handlePatchValidation(ctx context.Context, id int64, fields PatchUserFields, err error) (userModel.UserFull, error) {
-	if err != nil {
+	if err := s.validator.ValidatePatch(fields); err != nil {
 		return userModel.UserFull{}, err
 	}
-	userRow, fetchErr := s.repository.GetByID(ctx, id)
-	return s.handlePatchFetch(ctx, userRow, fields, fetchErr)
-}
-
-func (s *UserService) handlePatchFetch(
-	ctx context.Context,
-	userRow db.User,
-	fields PatchUserFields,
-	err error,
-) (userModel.UserFull, error) {
-	if err != nil {
-		return userModel.UserFull{}, err
-	}
-	params := NewPatchParamsBuilder(userRow, fields).Build()
-	updateErr := s.repository.Update(ctx, params)
-	return s.handlePatchResult(ctx, userRow.ID, updateErr)
-}
-
-func (s *UserService) handlePatchResult(ctx context.Context, id int64, err error) (userModel.UserFull, error) {
-	if err != nil {
+	if err := s.repository.Patch(ctx, id, fields); err != nil {
 		return userModel.UserFull{}, err
 	}
 	return s.Get(ctx, id)
+}
+
+func (s *UserService) buildPatchParams(userRow db.User, fields PatchUserFields) db.UpdateUserParams {
+	return db.UpdateUserParams{
+		ID:       userRow.ID,
+		Email:    s.resolveString(userRow.Email, fields.Email),
+		Nickname: s.resolveString(userRow.Nickname, fields.Nickname),
+		Role:     s.resolveRole(userRow.Role, fields.Role),
+	}
+}
+
+func (s *UserService) resolveString(current string, update *string) string {
+	if update != nil {
+		return *update
+	}
+	return current
+}
+
+func (s *UserService) resolveRole(current db.UsersRole, update *string) db.UsersRole {
+	if update != nil {
+		return db.UsersRole(*update)
+	}
+	return current
 }
 
 func (s *UserService) Delete(ctx context.Context, id int64) error {
@@ -133,10 +155,6 @@ func (s *UserService) Delete(ctx context.Context, id int64) error {
 
 func (s *UserService) fetchUserFull(ctx context.Context, userRow db.User) (userModel.UserFull, error) {
 	statsRow, err := s.repository.GetStatsByUserID(ctx, userRow.ID)
-	return s.handleFetchStats(userRow, statsRow, err)
-}
-
-func (s *UserService) handleFetchStats(userRow db.User, statsRow db.UserStat, err error) (userModel.UserFull, error) {
 	if err != nil {
 		return userModel.UserFull{}, err
 	}

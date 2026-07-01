@@ -1,11 +1,11 @@
 version: "2"
 sql:
-  - schema: "user/schema/001_create_user_tables.sql"
+  - schema: "user/schema"
     queries:
       - "user/queries/users.sql"
       - "user/queries/user_stats.sql"
     gen:
       go:
         package: "repository_errors"
-        out: "../internal/service/user"
+        out: "../internal/service/user/generated"
     engine: mysql

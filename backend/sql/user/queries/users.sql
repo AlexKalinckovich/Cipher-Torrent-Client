@@ -1,27 +1,31 @@
 -- name: CreateUser :execresult
-INSERT INTO users (email, public_key, nickname, role, created_at)
-VALUES (?, ?, ?, ?, ?);
+INSERT INTO users (email, public_key, private_key_enc, nickname, role, created_at)
+VALUES (?, ?, ?, ?, ?, ?);
 
 -- name: GetUserByID :one
-SELECT id, email, public_key, nickname, role, created_at
-FROM users
-WHERE id = ? LIMIT 1;
+SELECT * FROM users WHERE id = ? LIMIT 1;
 
 -- name: GetUserByEmail :one
-SELECT id, email, public_key, nickname, role, created_at
-FROM users
-WHERE email = ? LIMIT 1;
+SELECT * FROM users WHERE email = ? LIMIT 1;
+
+-- name: GetUserByNickname :one
+SELECT * FROM users WHERE nickname = ? LIMIT 1;
 
 -- name: GetUserByPublicKey :one
-SELECT id, email, public_key, nickname, role, created_at
-FROM users
-WHERE public_key = ? LIMIT 1;
+SELECT * FROM users WHERE public_key = ? LIMIT 1;
 
 -- name: UpdateUser :exec
 UPDATE users
-SET email = ?, public_key = ?, nickname = ?, role = ?
+SET email = ?, nickname = ?, role = ?
 WHERE id = ?;
 
+-- name: PatchUser :exec
+UPDATE users
+SET
+    email    = COALESCE(sqlc.narg('email'),    email),
+    nickname = COALESCE(sqlc.narg('nickname'), nickname),
+    role     = COALESCE(sqlc.narg('role'),     role)
+WHERE id = sqlc.arg('id');
+
 -- name: DeleteUser :exec
-DELETE FROM users
-WHERE id = ?;
+DELETE FROM users WHERE id = ?;
