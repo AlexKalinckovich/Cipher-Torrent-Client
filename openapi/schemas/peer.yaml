@@ -3,7 +3,7 @@ Peer:
   required:
     - peer_id
     - ip
-    - port
+    - ports
     - client_name
     - supports_ut_reputation
   properties:

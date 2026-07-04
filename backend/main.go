@@ -4,7 +4,12 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	torrent2 "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/mapper/torrent"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/redis"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/torrent"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/torrent/infra"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/custom_errors/not_found"
+	"log"
 	"net/http"
 	"os"
 	"time"
@@ -30,7 +35,6 @@ import (
 
 func main() {
 	err := godotenv.Load("../containerization/.env")
-
 	handleInitError(err)
 
 	conn, connErr := sql.Open("mysql", buildDSN())
@@ -46,6 +50,7 @@ func main() {
 
 	v1 := engine.Group("/api/v1")
 	bootstrapUserModule(v1, conn)
+	bootstrapTorrentModule(v1)
 
 	runErr := engine.Run(":8080")
 	handleInitError(runErr)
@@ -205,5 +210,30 @@ func bootstrapUserModule(rg *gin.RouterGroup, conn *sql.DB) {
 
 	service := userService.NewUserService(repository, mapper, validator, cr)
 	handler := handlers.NewUserHandler(service)
+	handler.RegisterRoutes(rg)
+}
+
+func bootstrapTorrentModule(rg *gin.RouterGroup) {
+	redisAddr := os.Getenv("REDIS_ADDR")
+	if redisAddr == "" {
+		redisAddr = "localhost:6379"
+	}
+
+	redisPassword := os.Getenv("REDIS_PASSWORD")
+
+	redisPublisher, err := redis.NewEventBus(redisAddr, redisPassword)
+	if err != nil {
+		log.Fatalf("Failed to initialize Redis EventBus: %v", err)
+	}
+
+	engine, err := infra.NewAnacrolixEngine("./test_downloads", redisPublisher)
+	if err != nil {
+		log.Fatalf("Failed to initialize Torrent Engine: %v", err)
+	}
+
+	mapper := &torrent2.MetainfoMapper{}
+	torrentService := torrent.NewService(engine, mapper)
+
+	handler := handlers.NewTorrentHandler(torrentService)
 	handler.RegisterRoutes(rg)
 }
