@@ -4,7 +4,7 @@ import (
 	"context"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/mapper/torrent"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/torrent/ports"
-	torrent2 "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/model/torrent"
+	torrentModel "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/model/torrent"
 	"mime/multipart"
 
 	"github.com/anacrolix/torrent/metainfo"
@@ -19,10 +19,10 @@ func NewService(engine ports.TorrentEngine, mapper *torrent.MetainfoMapper) *Ser
 	return &Service{engine: engine, mapper: mapper}
 }
 
-func (s *Service) Inspect(ctx context.Context, file multipart.File) (torrent2.Model, error) {
+func (s *Service) Inspect(ctx context.Context, file multipart.File) (torrentModel.Model, error) {
 	mi, err := metainfo.Load(file)
 	if err != nil {
-		return torrent2.Model{}, err
+		return torrentModel.Model{}, err
 	}
 	return s.mapper.ToModel(mi)
 }

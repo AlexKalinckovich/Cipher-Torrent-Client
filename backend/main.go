@@ -6,6 +6,7 @@ import (
 	"fmt"
 	torrent2 "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/mapper/torrent"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/redis"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/redis/redis_errors"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/torrent"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/torrent/infra"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/custom_errors/not_found"
@@ -74,7 +75,18 @@ func buildErrorRegistry() *transport.ErrorRegistry {
 	registerDatabaseUnavailableHandler(registry)
 	registerDpkiErrorHandler(registry)
 	registerEncryptionErrorHandler(registry)
+	registerRedisFailedConnectionError(registry)
 	return registry
+}
+
+func registerRedisFailedConnectionError(registry *transport.ErrorRegistry) {
+	registry.Register(redis_errors.RedisFailedConnectionErrorCode, func(err error) transport.HTTPResponse {
+		return transport.NewHTTPResponse(http.StatusInternalServerError, common.ApiError{
+			Status:    http.StatusInternalServerError,
+			ErrorCode: redis_errors.RedisFailedConnectionErrorCode,
+			Message:   "redis failed",
+		})
+	})
 }
 
 func registerValidationHandler(registry *transport.ErrorRegistry) {

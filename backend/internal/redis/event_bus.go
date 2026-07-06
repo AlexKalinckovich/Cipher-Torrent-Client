@@ -2,8 +2,8 @@ package redis
 
 import (
 	"context"
-	"fmt"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/redis/ports"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/redis/redis_errors"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -28,7 +28,7 @@ func NewEventBus(addr string, password string) (ports.EventPublisher, error) {
 	defer cancel()
 
 	if err := client.Ping(ctx).Err(); err != nil {
-		return nil, fmt.Errorf("failed to connect to Redis: %w", err)
+		return nil, redis_errors.NewRedisFailedConnectionErrorWithCause("failed to connect to Redis", err)
 	}
 
 	return &EventBus{client: client}, nil
