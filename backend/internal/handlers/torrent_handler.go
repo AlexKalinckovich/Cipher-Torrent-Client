@@ -1,58 +1,82 @@
 package handlers
 
 import (
-	"github.com/gin-gonic/gin"
+	"context"
+	"encoding/hex"
+	"errors"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/torrent/ports"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/model/torrent"
+	"mime/multipart"
 	"net/http"
+
+	"github.com/gin-gonic/gin"
 )
 
-type TorrentHandler struct{}
+const torrentFileField = "torrent_file"
 
-func NewTorrentHandler() *TorrentHandler {
-	return &TorrentHandler{}
+const publicKeyHeader = "X-Public-Key"
+
+type TorrentServicePort interface {
+	Inspect(ctx context.Context, file multipart.File) (torrent.Model, error)
+	Download(ctx context.Context, file multipart.File) (ports.DownloadResponse, error)
+}
+
+type TorrentHandler struct {
+	service TorrentServicePort
+}
+
+func NewTorrentHandler(service TorrentServicePort) *TorrentHandler {
+	return &TorrentHandler{service: service}
 }
 
 func (h *TorrentHandler) RegisterRoutes(rg *gin.RouterGroup) {
 	torrents := rg.Group("/torrents")
 	{
-		torrents.POST("", h.AddTorrent)
-		torrents.GET("", h.GetTorrents)
-		torrents.GET("/:infoHash", h.GetTorrent)
-		torrents.GET("/:infoHash/peers", h.GetTorrentPeers)
-		torrents.GET("/:infoHash/signatures", h.GetTorrentSignatures)
-		torrents.POST("/:infoHash/pause", h.PauseTorrent)
-		torrents.POST("/:infoHash/resume", h.ResumeTorrent)
-		torrents.POST("/:infoHash/sign", h.SignTorrent)
+		torrents.POST("/inspect", h.Inspect)
+		torrents.POST("/download", h.Download)
 	}
 }
 
-func (h *TorrentHandler) AddTorrent(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"status": "torrent added"})
+func (h *TorrentHandler) Inspect(c *gin.Context) {
+	file, _, err := c.Request.FormFile(torrentFileField)
+	if err != nil {
+		h.fail(c, err)
+		return
+	}
+	defer file.Close()
+	res, err := h.service.Inspect(c.Request.Context(), file)
+	h.respond(c, http.StatusOK, res, err)
 }
 
-func (h *TorrentHandler) GetTorrents(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"status": "OK"})
+func (h *TorrentHandler) Download(c *gin.Context) {
+	file, _, err := c.Request.FormFile(torrentFileField)
+	if err != nil {
+		h.fail(c, err)
+		return
+	}
+	defer file.Close()
+
+	res, err := h.service.Download(c.Request.Context(), file)
+	h.respond(c, http.StatusCreated, res, err)
 }
 
-func (h *TorrentHandler) GetTorrent(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"status": "OK"})
+func (h *TorrentHandler) extractPubKey(c *gin.Context) ([]byte, error) {
+	pubKeyHex := c.GetHeader(publicKeyHeader)
+	if pubKeyHex == "" {
+		return nil, errors.New("missing X-Public-Key header")
+	}
+	return hex.DecodeString(pubKeyHex)
 }
 
-func (h *TorrentHandler) GetTorrentPeers(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"status": "OK"})
+func (h *TorrentHandler) respond(c *gin.Context, status int, data any, err error) {
+	if err != nil {
+		h.fail(c, err)
+		return
+	}
+	c.JSON(status, data)
 }
 
-func (h *TorrentHandler) GetTorrentSignatures(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"status": "OK"})
-}
-
-func (h *TorrentHandler) PauseTorrent(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"status": "OK"})
-}
-
-func (h *TorrentHandler) ResumeTorrent(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"status": "OK"})
-}
-
-func (h *TorrentHandler) SignTorrent(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"status": "OK"})
+func (h *TorrentHandler) fail(c *gin.Context, err error) {
+	_ = c.Error(err)
+	c.Abort()
 }
