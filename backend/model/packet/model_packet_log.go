@@ -1,9 +1,8 @@
 package packet
 
 import (
-	"time"
-
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/model/reputation"
+	"time"
 )
 
 type EventType string
@@ -36,15 +35,19 @@ const (
 )
 
 type Log struct {
-	ID                int64              `json:"id"`
-	Timestamp         time.Time          `json:"timestamp"`
-	Direction         Direction          `json:"direction"`
-	MessageType       MessageType        `json:"message_type"`
-	PeerIP            string             `json:"peer_ip,omitempty"`
-	RawPayloadBase64  string             `json:"raw_payload_base64"`
-	ParsedInfo        string             `json:"parsed_info,omitempty"`
-	ReputationPayload reputation.Receipt `json:"reputation_payload,omitempty"`
-	SizeBytes         int64              `json:"size_bytes,omitempty"`
+	ID          int64       `json:"id"`
+	Timestamp   time.Time   `json:"timestamp"`
+	Direction   Direction   `json:"direction"`
+	MessageType MessageType `json:"message_type"`
+	PeerIP      string      `json:"peer_ip,omitempty"`
+
+	PieceIndex  *int32 `json:"piece_index,omitempty"`
+	ChunkOffset *int32 `json:"chunk_offset,omitempty"`
+	ChunkLength *int32 `json:"chunk_length,omitempty"`
+
+	ParsedInfo        string              `json:"parsed_info,omitempty"`
+	ReputationPayload *reputation.Receipt `json:"reputation_payload,omitempty"`
+	SizeBytes         int64               `json:"size_bytes,omitempty"`
 }
 
 type Event struct {

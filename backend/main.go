@@ -4,12 +4,14 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/infrastructure/websocket"
 	torrent2 "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/mapper/torrent"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/redis"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/redis/redis_errors"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/torrent"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/torrent/infra"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/custom_errors/not_found"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/dpki"
 	"log"
 	"net/http"
 	"os"
@@ -230,7 +232,6 @@ func bootstrapTorrentModule(rg *gin.RouterGroup) {
 	if redisAddr == "" {
 		redisAddr = "localhost:6379"
 	}
-
 	redisPassword := os.Getenv("REDIS_PASSWORD")
 
 	redisPublisher, err := redis.NewEventBus(redisAddr, redisPassword)
@@ -238,14 +239,25 @@ func bootstrapTorrentModule(rg *gin.RouterGroup) {
 		log.Fatalf("Failed to initialize Redis EventBus: %v", err)
 	}
 
-	engine, err := infra.NewAnacrolixEngine("./test_downloads", redisPublisher)
+	keyPair, err := dpki.GenerateIdentity()
+	if err != nil {
+		log.Fatalf("Failed to generate identity: %v", err)
+	}
+	localPubKey := keyPair.PublicKey
+
+	engine, err := infra.NewAnacrolixEngine("./test_downloads", localPubKey, redisPublisher)
 	if err != nil {
 		log.Fatalf("Failed to initialize Torrent Engine: %v", err)
 	}
 
 	mapper := &torrent2.MetainfoMapper{}
 	torrentService := torrent.NewService(engine, mapper)
-
 	handler := handlers.NewTorrentHandler(torrentService)
 	handler.RegisterRoutes(rg)
+
+	broker, _ := redis.NewEventBroker(redisAddr, redisPassword)
+	hub := websocket.NewHub(broker)
+
+	wsHandler := handlers.NewWebSocketHandler(hub)
+	rg.GET("/ws/:infoHash", wsHandler.Handle)
 }

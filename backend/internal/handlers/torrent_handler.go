@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"context"
+	"encoding/hex"
+	"errors"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/torrent/ports"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/model/torrent"
 	"mime/multipart"
@@ -11,6 +13,8 @@ import (
 )
 
 const torrentFileField = "torrent_file"
+
+const publicKeyHeader = "X-Public-Key"
 
 type TorrentServicePort interface {
 	Inspect(ctx context.Context, file multipart.File) (torrent.Model, error)
@@ -51,8 +55,17 @@ func (h *TorrentHandler) Download(c *gin.Context) {
 		return
 	}
 	defer file.Close()
+
 	res, err := h.service.Download(c.Request.Context(), file)
 	h.respond(c, http.StatusCreated, res, err)
+}
+
+func (h *TorrentHandler) extractPubKey(c *gin.Context) ([]byte, error) {
+	pubKeyHex := c.GetHeader(publicKeyHeader)
+	if pubKeyHex == "" {
+		return nil, errors.New("missing X-Public-Key header")
+	}
+	return hex.DecodeString(pubKeyHex)
 }
 
 func (h *TorrentHandler) respond(c *gin.Context, status int, data any, err error) {
