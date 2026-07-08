@@ -3,6 +3,7 @@ package user
 import (
 	"context"
 	"database/sql"
+	"time"
 
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/repository/tx"
 	generated "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/user/generated"
@@ -104,6 +105,6 @@ func buildUser(id int64, arg generated.CreateUserParams) generated.User {
 		PrivateKeyEnc: arg.PrivateKeyEnc,
 		Nickname:      arg.Nickname,
 		Role:          arg.Role,
-		CreatedAt:     arg.CreatedAt,
+		CreatedAt:     time.Now(),
 	}
 }

@@ -4,6 +4,7 @@ import (
 	serviceUser "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/user"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/custom_errors/validation"
 	"regexp"
+	"strings"
 )
 
 var (
@@ -23,6 +24,7 @@ func NewUserValidator() *UserValidator {
 
 func (v *UserValidator) ValidateCreate(params serviceUser.CreateUserInput) error {
 	agg := validation.NewAggregateError()
+
 	v.checkEmailField(agg, params.Email)
 	v.checkNicknameField(agg, params.Nickname)
 	v.checkRoleField(agg, params.Role)
@@ -63,8 +65,9 @@ func (v *UserValidator) checkEmailField(agg *validation.AggregateError, email st
 }
 
 func (v *UserValidator) checkNicknameField(agg *validation.AggregateError, nickname string) {
-	if !nicknameRegex.MatchString(nickname) {
-		agg.Add("nickname", nickname, "nickname must be alphanumeric and 3-16 characters long")
+	cleanedNickname := strings.TrimSpace(nickname)
+	if !nicknameRegex.MatchString(cleanedNickname) {
+		agg.Add("nickname", cleanedNickname, "nickname must be alphanumeric and 3-16 characters long")
 	}
 }
 

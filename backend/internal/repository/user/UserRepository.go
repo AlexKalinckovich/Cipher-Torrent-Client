@@ -76,10 +76,11 @@ func (r *UserRepository) Delete(ctx context.Context, id int64) error {
 
 func (r *UserRepository) buildPatchParams(id int64, fields user.PatchUserFields) generated.PatchUserParams {
 	return generated.PatchUserParams{
-		ID:       id,
-		Email:    toNullString(fields.Email),
-		Nickname: toNullString(fields.Nickname),
-		Role:     toNullRole(fields.Role),
+		ID:           id,
+		Email:        toNullString(fields.Email),
+		Nickname:     toNullString(fields.Nickname),
+		PasswordHash: toNullString(fields.PasswordHash),
+		Role:         toNullRole(fields.Role),
 	}
 }
 

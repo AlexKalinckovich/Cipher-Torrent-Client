@@ -1,12 +1,11 @@
-package redis
+package event_broker
 
 import (
 	"context"
-	ports "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/redis/ports"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/redis/ports"
+	"github.com/redis/go-redis/v9"
 	"log"
 	"time"
-
-	"github.com/redis/go-redis/v9"
 )
 
 const SubscribeChannelCapacity = 100
@@ -15,15 +14,8 @@ type EventBroker struct {
 	client *redis.Client
 }
 
-func NewEventBroker(addr string, password string) (ports.EventBroker, error) {
-	client := redis.NewClient(&redis.Options{
-		Addr:        addr,
-		Password:    password,
-		PoolSize:    20,
-		DialTimeout: 5 * time.Second,
-		ReadTimeout: 3 * time.Second,
-	})
-	return &EventBroker{client: client}, client.Ping(context.Background()).Err()
+func NewEventBroker(client *redis.Client) ports.EventBroker {
+	return &EventBroker{client: client}
 }
 
 func (b *EventBroker) Publish(ctx context.Context, channel string, payload []byte) error {
