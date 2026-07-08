@@ -10,7 +10,7 @@ import (
 
 type AuthServicePort interface {
 	Login(ctx context.Context, email, password string) (modelAuth.AuthResponse, error)
-	Register(ctx context.Context, email, password string) (modelAuth.AuthResponse, error)
+	Register(ctx context.Context, email, password, nickname string) (modelAuth.AuthResponse, error)
 	Refresh(ctx context.Context, refreshToken string) (modelAuth.TokensResponse, error)
 }
 
@@ -53,7 +53,7 @@ func (h *AuthHandler) RegisterUser(c *gin.Context) {
 		h.fail(c, err)
 		return
 	}
-	result, serviceErr := h.service.Register(c.Request.Context(), req.Email, req.Password)
+	result, serviceErr := h.service.Register(c.Request.Context(), req.Email, req.Password, req.Nickname)
 	h.respondAuth(c, result, serviceErr)
 }
 

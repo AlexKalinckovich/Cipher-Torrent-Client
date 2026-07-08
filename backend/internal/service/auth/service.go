@@ -35,18 +35,19 @@ func NewAuthService(
 	}
 }
 
-func (s *AuthService) Register(ctx context.Context, email, password string) (modelAuth.AuthResponse, error) {
+func (s *AuthService) Register(ctx context.Context, email, password, nickname string) (modelAuth.AuthResponse, error) {
 	hash, err := s.hasher.Hash(password)
 	if err != nil {
 		return modelAuth.AuthResponse{}, service_errors.NewEncryptionError(err)
 	}
-	return s.createUserAndIssueTokens(ctx, email, hash)
+	return s.createUserAndIssueTokens(ctx, email, hash, nickname)
 }
 
-func (s *AuthService) createUserAndIssueTokens(ctx context.Context, email, hash string) (modelAuth.AuthResponse, error) {
+func (s *AuthService) createUserAndIssueTokens(ctx context.Context, email, hash, nickname string) (modelAuth.AuthResponse, error) {
 	params := user.CreateUserInput{
 		Email:        email,
 		PasswordHash: hash,
+		Nickname:     nickname,
 		Role:         "user",
 	}
 	userFull, err := s.userDomain.Create(ctx, params)

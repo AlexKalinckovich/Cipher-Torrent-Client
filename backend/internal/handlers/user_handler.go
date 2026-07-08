@@ -36,6 +36,7 @@ func (h *UserHandler) RegisterRoutes(rg *gin.RouterGroup) {
 		users.GET("/:id", h.Get)
 		users.GET("/email/:email", h.GetByEmail)
 		users.GET("/nickname/:nickname", h.GetByNickname)
+		users.GET("/password/:email", h.GetPasswordHash)
 		users.GET("/public-key/*key", h.GetByPublicKey)
 		users.PUT("/:id", h.Update)
 		users.PATCH("/:id", h.Patch)
@@ -80,7 +81,7 @@ func (h *UserHandler) handleGetID(c *gin.Context, id int64, err error) {
 	h.handleGetResult(c, res, serviceErr)
 }
 
-func (h *UserHandler) handleGetResult(c *gin.Context, res userModel.UserFull, err error) {
+func (h *UserHandler) handleGetResult(c *gin.Context, res any, err error) {
 	if err != nil {
 		h.fail(c, err)
 		return
@@ -97,6 +98,12 @@ func (h *UserHandler) GetByEmail(c *gin.Context) {
 func (h *UserHandler) GetByNickname(c *gin.Context) {
 	nickname := c.Param("nickname")
 	res, err := h.service.GetByNickname(c.Request.Context(), nickname)
+	h.handleGetResult(c, res, err)
+}
+
+func (h *UserHandler) GetPasswordHash(c *gin.Context) {
+	email := c.Param("email")
+	res, err := h.service.GetPasswordHash(c.Request.Context(), email)
 	h.handleGetResult(c, res, err)
 }
 
