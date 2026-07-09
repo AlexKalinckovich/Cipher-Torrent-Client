@@ -23,6 +23,7 @@ type UserServicePort interface {
 	Get(ctx context.Context, id int64) (userModel.UserFull, error)
 	GetByEmail(ctx context.Context, email string) (userModel.UserFull, error)
 	GetByNickname(ctx context.Context, nickname string) (userModel.UserFull, error)
+	GetPasswordHash(ctx context.Context, email string) (string, error)
 	GetByPublicKey(ctx context.Context, publicKey []byte) (userModel.UserFull, error)
 	Update(ctx context.Context, id int64, params UpdateUserInput) (userModel.UserFull, error)
 	Patch(ctx context.Context, id int64, fields PatchUserFields) (userModel.UserFull, error)

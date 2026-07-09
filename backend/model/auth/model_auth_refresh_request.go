@@ -9,6 +9,6 @@
 
 package auth
 
-type AuthRefreshRequest struct {
+type RefreshTokenRequest struct {
 	RefreshToken string `json:"refresh_token"`
 }

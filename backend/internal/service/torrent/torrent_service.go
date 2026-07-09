@@ -19,6 +19,11 @@ func NewService(engine ports.TorrentEngine, mapper *torrent.MetainfoMapper) *Ser
 	return &Service{engine: engine, mapper: mapper}
 }
 
+func NewServiceWithDefaultMapper(engine ports.TorrentEngine) *Service {
+	mapper := &torrent.MetainfoMapper{}
+	return &Service{engine: engine, mapper: mapper}
+}
+
 func (s *Service) Inspect(_ context.Context, file multipart.File) (torrentModel.Model, error) {
 	mi, err := metainfo.Load(file)
 	if err != nil {

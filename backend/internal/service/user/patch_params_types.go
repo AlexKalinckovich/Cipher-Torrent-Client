@@ -5,9 +5,10 @@ import (
 )
 
 type PatchUserFields struct {
-	Email    *string
-	Nickname *string
-	Role     *string
+	Email        *string
+	Nickname     *string
+	PasswordHash *string
+	Role         *string
 }
 
 type PatchParamsBuilder struct {

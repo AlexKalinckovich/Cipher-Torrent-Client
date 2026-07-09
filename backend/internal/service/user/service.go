@@ -2,12 +2,12 @@ package user
 
 import (
 	"context"
-	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/security"
 	"time"
 
 	db "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/user/generated"
 	serviceErrors "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/custom_errors/service_errors"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/dpki"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/security"
 	userModel "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/model/user"
 )
 
@@ -36,12 +36,10 @@ func (s *UserService) Create(ctx context.Context, params CreateUserInput) (userM
 	if err := s.validator.ValidateCreate(params); err != nil {
 		return userModel.UserFull{}, err
 	}
-
 	keyPair, err := dpki.GenerateIdentity()
 	if err != nil {
 		return userModel.UserFull{}, serviceErrors.NewDpkiError(err)
 	}
-
 	encryptedKey, err := s.crypto.EncryptPrivateKey(keyPair.PrivateKey)
 	if err != nil {
 		return userModel.UserFull{}, serviceErrors.NewEncryptionError(err)
@@ -51,7 +49,6 @@ func (s *UserService) Create(ctx context.Context, params CreateUserInput) (userM
 	if err != nil {
 		return userModel.UserFull{}, err
 	}
-
 	return s.fetchUserFull(ctx, userRow)
 }
 
@@ -61,6 +58,7 @@ func (s *UserService) buildCreateParams(params CreateUserInput, keyPair *dpki.Ke
 		PublicKey:     keyPair.PublicKey,
 		PrivateKeyEnc: encryptedKey,
 		Nickname:      params.Nickname,
+		PasswordHash:  params.PasswordHash,
 		Role:          db.UsersRole(params.Role),
 		CreatedAt:     time.Now(),
 	}
@@ -102,17 +100,16 @@ func (s *UserService) Update(ctx context.Context, id int64, params UpdateUserInp
 	if err := s.validator.ValidateUpdate(params); err != nil {
 		return userModel.UserFull{}, err
 	}
-
 	updateErr := s.repository.Update(ctx, db.UpdateUserParams{
-		ID:       id,
-		Email:    params.Email,
-		Nickname: params.Nickname,
-		Role:     db.UsersRole(params.Role),
+		ID:           id,
+		Email:        params.Email,
+		Nickname:     params.Nickname,
+		PasswordHash: params.PasswordHash,
+		Role:         db.UsersRole(params.Role),
 	})
 	if updateErr != nil {
 		return userModel.UserFull{}, updateErr
 	}
-
 	return s.Get(ctx, id)
 }
 
@@ -126,29 +123,6 @@ func (s *UserService) Patch(ctx context.Context, id int64, fields PatchUserField
 	return s.Get(ctx, id)
 }
 
-func (s *UserService) buildPatchParams(userRow db.User, fields PatchUserFields) db.UpdateUserParams {
-	return db.UpdateUserParams{
-		ID:       userRow.ID,
-		Email:    s.resolveString(userRow.Email, fields.Email),
-		Nickname: s.resolveString(userRow.Nickname, fields.Nickname),
-		Role:     s.resolveRole(userRow.Role, fields.Role),
-	}
-}
-
-func (s *UserService) resolveString(current string, update *string) string {
-	if update != nil {
-		return *update
-	}
-	return current
-}
-
-func (s *UserService) resolveRole(current db.UsersRole, update *string) db.UsersRole {
-	if update != nil {
-		return db.UsersRole(*update)
-	}
-	return current
-}
-
 func (s *UserService) Delete(ctx context.Context, id int64) error {
 	return s.repository.Delete(ctx, id)
 }
@@ -159,4 +133,12 @@ func (s *UserService) fetchUserFull(ctx context.Context, userRow db.User) (userM
 		return userModel.UserFull{}, err
 	}
 	return s.mapper.ToUserFullDTO(userRow, statsRow), nil
+}
+
+func (s *UserService) GetPasswordHash(ctx context.Context, email string) (string, error) {
+	user, err := s.repository.GetByEmail(ctx, email)
+	if err != nil {
+		return "", err
+	}
+	return user.PasswordHash, nil
 }
