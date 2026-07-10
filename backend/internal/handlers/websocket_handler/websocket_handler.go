@@ -1,4 +1,4 @@
-package handlers
+package websocket_handler
 
 import (
 	websocketHub "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/infrastructure/websocket"

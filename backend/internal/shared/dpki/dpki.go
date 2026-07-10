@@ -3,7 +3,7 @@ package dpki
 import (
 	"crypto/ed25519"
 	"crypto/rand"
-	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/custom_errors/service_errors"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/custom_errors/crypto_errors"
 )
 
 type KeyPair struct {
@@ -15,7 +15,7 @@ func GenerateIdentity() (*KeyPair, error) {
 	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
 
 	if err != nil {
-		return nil, service_errors.NewDpkiError(err)
+		return nil, crypto_errors.NewDpkiError(err)
 	}
 
 	return &KeyPair{

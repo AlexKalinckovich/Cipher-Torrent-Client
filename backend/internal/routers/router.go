@@ -1,7 +1,9 @@
 package routers
 
 import (
-	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/handlers"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/handlers/auth_handler"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/handlers/torrent_handler"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/handlers/user_handler"
 	"github.com/gin-gonic/gin"
 )
 
@@ -10,9 +12,9 @@ func SetupRouter() *gin.Engine {
 
 	v1 := router.Group("/api/v1")
 
-	torrentHandler := handlers.NewTorrentHandler()
-	userHandler := handlers.NewUserHandler()
-	authHandler := handlers.NewAuthHandler()
+	torrentHandler := torrent_handler.NewTorrentHandler()
+	userHandler := user_handler.NewUserHandler()
+	authHandler := auth_handler.NewAuthHandler()
 
 	torrentHandler.RegisterRoutes(v1)
 	userHandler.RegisterRoutes(v1)

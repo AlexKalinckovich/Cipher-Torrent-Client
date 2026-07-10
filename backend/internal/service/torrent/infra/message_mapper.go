@@ -30,19 +30,17 @@ func (m *MessageMapper) buildLog(pc *torrent.PeerConn, msg *peer_protocol.Messag
 	log := m.initBaseLog(pc, msg)
 	m.applyPieceMetadata(&log, msg)
 	m.applyReputationPayload(&log, pc, msg, key)
-	m.writeLogToFile(log)
+	//m.writeLogToFile(log)
 	return log
 }
 
 func (m *MessageMapper) writeLogToFile(log packet.Log) {
-	// Beautify JSON with indentation
 	jsonData, err := json.MarshalIndent(log, "", "  ")
 	if err != nil {
 		fmt.Printf("[ERROR] Failed to marshal log to JSON: %v\n", err)
 		return
 	}
 
-	// Open file in append mode, create if doesn't exist
 	file, err := os.OpenFile("./local.json", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		fmt.Printf("[ERROR] Failed to open log file: %v\n", err)
@@ -50,13 +48,11 @@ func (m *MessageMapper) writeLogToFile(log packet.Log) {
 	}
 	defer file.Close()
 
-	// Write JSON with newline separator
 	if _, err := file.Write(jsonData); err != nil {
 		fmt.Printf("[ERROR] Failed to write log to file: %v\n", err)
 		return
 	}
 
-	// Add newline for separation between entries
 	if _, err := file.Write([]byte(",\n")); err != nil {
 		fmt.Printf("[ERROR] Failed to write separator: %v\n", err)
 	}

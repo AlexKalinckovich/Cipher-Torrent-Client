@@ -9,3 +9,10 @@ sql:
         package: "repository_errors"
         out: "../internal/service/user/generated"
     engine: mysql
+  - schema: "torrent/schema"
+    queries: "torrent/queries/torrents.sql"
+    gen:
+      go:
+        package: "repository"
+        out: "../internal/service/torrent/generated"
+    engine: mysql

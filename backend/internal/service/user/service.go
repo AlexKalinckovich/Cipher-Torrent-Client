@@ -5,7 +5,7 @@ import (
 	"time"
 
 	db "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/user/generated"
-	serviceErrors "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/custom_errors/service_errors"
+	serviceErrors "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/custom_errors/crypto_errors"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/dpki"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/security"
 	userModel "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/model/user"

@@ -10,7 +10,6 @@ import (
 
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/redis/redis_errors"
 	sharedRepositoryErrors "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/custom_errors/repository_errors"
-	serviceErrors "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/custom_errors/service_errors"
 	headererrors "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/custom_errors/transport"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/custom_errors/validation"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/transport"
@@ -25,8 +24,6 @@ func buildErrorRegistry() *transport.ErrorRegistry {
 	registerDuplicateEmailHandler(registry)
 	registerDuplicateNicknameHandler(registry)
 	registerDatabaseUnavailableHandler(registry)
-	registerDpkiErrorHandler(registry)
-	registerEncryptionErrorHandler(registry)
 	registerRedisFailedConnectionError(registry)
 	registerAuthErrors(registry)
 	registerInvalidRefreshToken(registry)
@@ -87,22 +84,11 @@ func registerDatabaseUnavailableHandler(registry *transport.ErrorRegistry) {
 	registry.Register(repositoryErrors.DatabaseUnavailableCode, createServiceUnavailableHandler(repositoryErrors.DatabaseUnavailableCode, "service temporarily unavailable"))
 }
 
-func registerDpkiErrorHandler(registry *transport.ErrorRegistry) {
-	registry.Register(serviceErrors.DpkiErrorCode, createInternalHandler(serviceErrors.DpkiErrorCode, "identity key generation failed"))
-}
-
-func registerEncryptionErrorHandler(registry *transport.ErrorRegistry) {
-	registry.Register(serviceErrors.EncryptionErrorCode, createInternalHandler(serviceErrors.EncryptionErrorCode, "key encryption failed"))
-}
-
 func registerRedisFailedConnectionError(registry *transport.ErrorRegistry) {
 	registry.Register(redis_errors.RedisFailedConnectionErrorCode, createInternalHandler(redis_errors.RedisFailedConnectionErrorCode, "redis failed"))
 }
 
 func registerAuthErrors(registry *transport.ErrorRegistry) {
-	registry.Register(tokenErrors.InvalidCredentialsErrorCode, createUnauthorizedHandler(tokenErrors.InvalidCredentialsErrorCode))
-	registry.Register(tokenErrors.TokenGenerationErrorCode, createInternalHandler(tokenErrors.TokenGenerationErrorCode, "failed to generate authentication token"))
-	registry.Register(tokenErrors.RefreshTokenSaveErrorCode, createInternalHandler(tokenErrors.RefreshTokenSaveErrorCode, "failed to save session data"))
 	registry.Register(headererrors.MissingAuthHeaderErrorCode, createUnauthorizedHandler(headererrors.MissingAuthHeaderErrorCode))
 	registry.Register(headererrors.InvalidAuthFormatErrorCode, createUnauthorizedHandler(headererrors.InvalidAuthFormatErrorCode))
 	registry.Register(headererrors.InvalidTokenErrorCode, createUnauthorizedHandler(headererrors.InvalidTokenErrorCode))

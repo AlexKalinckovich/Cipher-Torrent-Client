@@ -2,11 +2,17 @@ package main
 
 import (
 	"database/sql"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/handlers/auth_handler"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/handlers/torrent_handler"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/handlers/user_handler"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/handlers/websocket_handler"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/mapper/torrent/meta_info"
 	userMapper "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/mapper/user"
+	torrent2 "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/repository/torrent"
+	t_validator "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/validator/torrent"
 	"time"
 
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/config"
-	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/handlers"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/infrastructure/websocket"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/redis/event_broker"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/redis/event_bus"
@@ -15,9 +21,10 @@ import (
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/repository/user"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/auth"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/torrent"
+	torrentDb "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/torrent/generated"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/torrent/infra"
 	userService "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/user"
-	db "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/user/generated"
+	userDb "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/user/generated"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/auth/jwt"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/dpki"
 	crypto "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/security"
@@ -27,14 +34,8 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-func bootstrapModules(rg *gin.RouterGroup, conn *sql.DB, redisClient *redis.Client) {
-	userSvc := bootstrapUserModule(rg, conn)
-	bootstrapAuthModule(rg, redisClient, userSvc)
-	bootstrapTorrentModule(rg, redisClient)
-}
-
 func bootstrapUserModule(rg *gin.RouterGroup, conn *sql.DB) *userService.UserService {
-	queries := db.New(conn)
+	queries := userDb.New(conn)
 	repository := user.NewUserRepository(conn, queries)
 	validator := userValidator.NewUserValidator()
 	mapper := userMapper.NewUserDTOMapper()
@@ -43,7 +44,7 @@ func bootstrapUserModule(rg *gin.RouterGroup, conn *sql.DB) *userService.UserSer
 
 	service := userService.NewUserService(repository, mapper, validator, cr)
 
-	handler := handlers.NewUserHandler(service)
+	handler := user_handler.NewUserHandler(service)
 	handler.RegisterRoutes(rg)
 
 	return service
@@ -57,7 +58,7 @@ func bootstrapAuthModule(rg *gin.RouterGroup, redisClient *redis.Client, userSvc
 
 	authSvc := auth.NewAuthService(userSvc, hasher, tokenIssuer, refreshStore)
 
-	authHandler := handlers.NewAuthHandler(authSvc)
+	authHandler := auth_handler.NewAuthHandler(authSvc)
 	authHandler.RegisterRoutes(rg)
 }
 
@@ -69,16 +70,20 @@ func initializeCryptoService(masterKey string) crypto.CryptoServicePort {
 	return cr
 }
 
-func bootstrapTorrentModule(rg *gin.RouterGroup, redisClient *redis.Client) {
+func bootstrapTorrentModule(rg *gin.RouterGroup, conn *sql.DB, redisClient *redis.Client) {
 	redisPublisher := event_bus.NewEventBus(redisClient)
 	keyPair := generateIdentity()
 	engine := initializeTorrentEngine(keyPair.PublicKey, redisPublisher)
-	service := torrent.NewServiceWithDefaultMapper(engine)
-	handler := handlers.NewTorrentHandler(service)
+	queries := torrentDb.New(conn)
+	repository := torrent2.NewTorrentRepository(conn, queries)
+	mapper := meta_info.NewMetainfoMapper()
+	validator := t_validator.NewTorrentValidator()
+	service := torrent.NewService(repository, engine, mapper, validator)
+	handler := torrent_handler.NewTorrentHandler(service)
 	handler.RegisterRoutes(rg)
 	broker := event_broker.NewEventBroker(redisClient)
 	hub := websocket.NewHub(broker)
-	wsHandler := handlers.NewWebSocketHandler(hub)
+	wsHandler := websocket_handler.NewWebSocketHandler(hub)
 	rg.GET("/ws/:infoHash", wsHandler.Handle)
 }
 

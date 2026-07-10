@@ -4,15 +4,6 @@ import (
 	"time"
 )
 
-type Status string
-
-const (
-	StatusPending  Status = "pending"
-	StatusRunning  Status = "running"
-	StatusFinished Status = "finished"
-	StatusError    Status = "error"
-)
-
 type EventType string
 
 const (
@@ -23,35 +14,27 @@ const (
 	EventTypePacket     EventType = "packet"
 )
 
-type Model struct {
-	ID               int64     `json:"id"`
-	InfoHash         string    `json:"info_hash"`
-	Name             string    `json:"name"`
-	SizeBytes        int64     `json:"size_bytes"`
-	Status           Status    `json:"status"`
-	Progress         float32   `json:"progress,omitempty"`
-	DownloadSpeedBps int64     `json:"download_speed_bps,omitempty"`
-	UploadSpeedBps   int64     `json:"upload_speed_bps,omitempty"`
-	AddedAt          time.Time `json:"added_at"`
-	PieceLength      int64     `json:"piece_length,omitempty"`
-	Files            []File    `json:"files,omitempty"`
-	SignaturesCount  int32     `json:"signatures_count,omitempty"`
-	IsSignedByMe     bool      `json:"is_signed_by_me,omitempty"`
-	PeersCount       int32     `json:"peers_count,omitempty"`
+type TorrentDTO struct {
+	InfoHash    string        `json:"info_hash"`
+	Name        string        `json:"name"`
+	SizeBytes   int64         `json:"size_bytes"`
+	StoragePath string        `json:"storage_path"`
+	Status      TorrentStatus `json:"status"`
+	Progress    float32       `json:"progress"`
+	AddedAt     time.Time     `json:"added_at"`
 }
 
-type AddRequest struct {
-	MagnetURI  string `json:"magnet_uri,omitempty"`
-	FileBase64 string `json:"file_base64,omitempty"`
-	SavePath   string `json:"save_path,omitempty"`
+type AddTorrentRequest struct {
+	MagnetURI string `json:"magnet_uri,omitempty"`
+	SavePath  string `json:"save_path"`
 }
 
-type AddResponse struct {
+type AddTorrentResponse struct {
 	Status   string `json:"status"`
 	InfoHash string `json:"info_hash"`
 }
 
-type File struct {
+type FileDTO struct {
 	Path      string `json:"path"`
 	SizeBytes int64  `json:"size_bytes"`
 }
@@ -64,7 +47,7 @@ type ProgressEvent struct {
 	UploadSpeedBps   int64     `json:"upload_speed_bps"`
 }
 
-type Signature struct {
+type SignatureDTO struct {
 	SignerUserID    int64     `json:"signer_user_id"`
 	SignerPublicKey string    `json:"signer_public_key"`
 	SignatureBytes  string    `json:"signature_bytes"`
@@ -73,7 +56,7 @@ type Signature struct {
 }
 
 type SignedEvent struct {
-	Type      EventType `json:"event_type"`
-	InfoHash  string    `json:"info_hash"`
-	Signature Signature `json:"signature"`
+	Type      EventType    `json:"event_type"`
+	InfoHash  string       `json:"info_hash"`
+	Signature SignatureDTO `json:"signature"`
 }

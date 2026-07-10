@@ -8,7 +8,7 @@ import (
 	modelAuth "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/model/auth"
 	"time"
 
-	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/custom_errors/service_errors"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/custom_errors/crypto_errors"
 	userModel "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/model/user"
 )
 
@@ -38,7 +38,7 @@ func NewAuthService(
 func (s *AuthService) Register(ctx context.Context, email, password, nickname string) (modelAuth.AuthResponse, error) {
 	hash, err := s.hasher.Hash(password)
 	if err != nil {
-		return modelAuth.AuthResponse{}, service_errors.NewEncryptionError(err)
+		return modelAuth.AuthResponse{}, crypto_errors.NewEncryptionError(err)
 	}
 	return s.createUserAndIssueTokens(ctx, email, hash, nickname)
 }
