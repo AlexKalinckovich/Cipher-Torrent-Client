@@ -1,0 +1,39 @@
+package entity
+
+import (
+	"encoding/hex"
+
+	generated "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/torrent/generated"
+	torrentModel "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/model/torrent"
+)
+
+func ToEntity(row generated.Torrent) torrentModel.TorrentEntity {
+	return torrentModel.TorrentEntity{
+		InfoHash:    row.InfoHash,
+		InfoBytes:   row.InfoBytes,
+		Name:        row.Name,
+		SizeBytes:   row.SizeBytes,
+		PieceLength: int(row.PieceLength),
+		IsPrivate:   row.IsPrivate,
+		StoragePath: row.StoragePath,
+		AddedAt:     row.AddedAt,
+	}
+}
+
+func ToDTO(
+	row generated.GetUserTorrentsRow,
+	files []torrentModel.FileDTO,
+	signatures []torrentModel.SignatureDTO,
+) torrentModel.TorrentDTO {
+	return torrentModel.TorrentDTO{
+		InfoHash:    hex.EncodeToString(row.InfoHash),
+		Name:        row.Name,
+		SizeBytes:   row.SizeBytes,
+		StoragePath: row.StoragePath,
+		Status:      torrentModel.TorrentStatus(row.Status),
+		Progress:    float32(row.Progress),
+		AddedAt:     row.AddedAt,
+		Files:       files,
+		Signatures:  signatures,
+	}
+}

@@ -4,15 +4,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	eventPorts "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/redis/ports"
-	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/model/packet"
-	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/model/reputation"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/custom_errors/torrent_errors"
+	"log"
+	"time"
+
 	"github.com/anacrolix/torrent"
 	"github.com/anacrolix/torrent/bencode"
 	"github.com/anacrolix/torrent/metainfo"
 	pp "github.com/anacrolix/torrent/peer_protocol"
-	"log"
-	"time"
+
+	eventPorts "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/redis/ports"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/model/packet"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/model/reputation"
 )
 
 const dpkiExtensionName pp.ExtensionName = "ut_dpki"
@@ -37,24 +40,6 @@ type AnacrolixEngine struct {
 	eventBus     chan asyncEvent
 }
 
-func (e *AnacrolixEngine) StartDownload(ctx context.Context, infoBytes []byte) (string, error) {
-	t, err := e.addTorrent(infoBytes)
-	if err != nil {
-		return "", err
-	}
-	return e.startAndReturnHash(t)
-}
-
-func (e *AnacrolixEngine) addTorrent(infoBytes []byte) (*torrent.Torrent, error) {
-	mi := &metainfo.MetaInfo{InfoBytes: infoBytes}
-	return e.client.AddTorrent(mi)
-}
-
-func (e *AnacrolixEngine) startAndReturnHash(t *torrent.Torrent) (string, error) {
-	<-t.GotInfo()
-	t.DownloadAll()
-	return t.InfoHash().HexString(), nil
-}
 func NewAnacrolixEngine(dataDir string, localPubKey []byte, publisher eventPorts.EventPublisher) (*AnacrolixEngine, error) {
 	engine := &AnacrolixEngine{
 		publisher:    publisher,
@@ -65,6 +50,50 @@ func NewAnacrolixEngine(dataDir string, localPubKey []byte, publisher eventPorts
 	}
 	go engine.dispatchEvents()
 	return engine.initClient(dataDir)
+}
+
+func (e *AnacrolixEngine) StartDownload(infoBytes []byte) (string, error) {
+	t, err := e.addTorrent(infoBytes)
+	if err != nil {
+		return "", err
+	}
+	return e.activateTorrent(t)
+}
+
+func (e *AnacrolixEngine) PauseTorrent(infoHash []byte) error {
+	hash := e.toMetainfoHash(infoHash)
+	t, ok := e.client.Torrent(hash)
+	if !ok {
+		return torrent_errors.NewTorrentNotFoundInClientError()
+	}
+	t.Drop()
+	return nil
+}
+
+func (e *AnacrolixEngine) ResumeTorrent(infoBytes []byte) error {
+	t, err := e.addTorrent(infoBytes)
+	if err != nil {
+		return err
+	}
+	_, err = e.activateTorrent(t)
+	return err
+}
+
+func (e *AnacrolixEngine) addTorrent(infoBytes []byte) (*torrent.Torrent, error) {
+	mi := &metainfo.MetaInfo{InfoBytes: infoBytes}
+	return e.client.AddTorrent(mi)
+}
+
+func (e *AnacrolixEngine) activateTorrent(t *torrent.Torrent) (string, error) {
+	<-t.GotInfo()
+	t.DownloadAll()
+	return t.InfoHash().HexString(), nil
+}
+
+func (e *AnacrolixEngine) toMetainfoHash(infoHash []byte) metainfo.Hash {
+	var hash metainfo.Hash
+	copy(hash[:], infoHash)
+	return hash
 }
 
 func (e *AnacrolixEngine) initClient(dataDir string) (*AnacrolixEngine, error) {
@@ -152,9 +181,13 @@ func (e *AnacrolixEngine) enqueueOutboundHandshake(pc *torrent.PeerConn, payload
 
 func (e *AnacrolixEngine) buildHandshakeLog(pc *torrent.PeerConn, payload []byte) packet.Log {
 	return packet.Log{
-		ID: time.Now().UnixNano(), Timestamp: time.Now(), Direction: packet.DirectionOutbound,
-		MessageType: packet.MessageTypeHandshake, PeerIP: pc.RemoteAddr.String(),
-		SizeBytes: int64(6 + len(payload)), ParsedInfo: "Sent DPKI Public Key",
+		ID:          time.Now().UnixNano(),
+		Timestamp:   time.Now(),
+		Direction:   packet.DirectionOutbound,
+		MessageType: packet.MessageTypeHandshake,
+		PeerIP:      pc.RemoteAddr.String(),
+		SizeBytes:   int64(6 + len(payload)),
+		ParsedInfo:  "Sent DPKI Public Key",
 	}
 }
 
@@ -167,12 +200,22 @@ func (e *AnacrolixEngine) onExtensionMessage(evt torrent.PeerConnReadExtensionMe
 }
 
 func (e *AnacrolixEngine) processDPKIMessage(evt torrent.PeerConnReadExtensionMessageEvent) {
-	var extPayload UTExtensionPayload
-	if err := bencode.Unmarshal(evt.Payload, &extPayload); err != nil {
+	extPayload, err := e.unmarshalDPKIPayload(evt.Payload)
+	if err != nil {
 		return
 	}
-	if extPayload.MsgType == 0 {
-		e.sessionStore.SaveKey(evt.PeerConn.PeerID, extPayload.PubKey)
+	e.saveKeyIfHandshake(evt.PeerConn.PeerID, extPayload)
+}
+
+func (e *AnacrolixEngine) unmarshalDPKIPayload(payload []byte) (UTExtensionPayload, error) {
+	var extPayload UTExtensionPayload
+	err := bencode.Unmarshal(payload, &extPayload)
+	return extPayload, err
+}
+
+func (e *AnacrolixEngine) saveKeyIfHandshake(peerID [20]byte, payload UTExtensionPayload) {
+	if payload.MsgType == 0 {
+		e.sessionStore.SaveKey(peerID, payload.PubKey)
 	}
 }
 

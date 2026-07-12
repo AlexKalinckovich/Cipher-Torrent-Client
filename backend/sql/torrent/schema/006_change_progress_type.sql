@@ -1,0 +1,5 @@
+-- +goose Up
+ALTER TABLE user_torrents MODIFY COLUMN progress FLOAT NOT NULL DEFAULT 0.00;
+
+-- +goose DOWN
+ALTER TABLE user_torrents MODIFY COLUMN progress DECIMAL(5, 2) NOT NULL DEFAULT 0.00;

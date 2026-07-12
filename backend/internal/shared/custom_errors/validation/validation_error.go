@@ -2,6 +2,9 @@ package validation
 
 import (
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/custom_errors/abstract_error_code"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/transport"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/model/common"
+	"net/http"
 	"strings"
 )
 
@@ -61,4 +64,25 @@ func (e *AggregateError) Error() string {
 
 func (e *AggregateError) Code() abstract_error_code.ErrorCode {
 	return AggregateErrorCode
+}
+
+func (e *AggregateError) Handle() transport.HTTPResponse {
+	return buildValidationErrorResponse(e)
+}
+
+func buildValidationErrorResponse(aggErr *AggregateError) transport.HTTPResponse {
+	return transport.NewHTTPResponse(http.StatusBadRequest, common.ApiError{
+		Status:    http.StatusBadRequest,
+		ErrorCode: string(AggregateErrorCode),
+		Message:   "validation failed",
+		Details:   buildValidationDetails(aggErr),
+	})
+}
+
+func buildValidationDetails(aggErr *AggregateError) map[string][]string {
+	details := make(map[string][]string, len(aggErr.Errors))
+	for _, fe := range aggErr.Errors {
+		details[fe.Field] = append(details[fe.Field], fe.Message)
+	}
+	return details
 }

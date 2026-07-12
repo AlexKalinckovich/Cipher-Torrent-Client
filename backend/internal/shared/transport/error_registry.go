@@ -11,6 +11,10 @@ import (
 
 type ErrorHandler func(err error) HTTPResponse
 
+type ErrorHandlerProvider interface {
+	Handle() HTTPResponse
+}
+
 type ErrorCodeProvider interface {
 	Code() customErrors.ErrorCode
 }

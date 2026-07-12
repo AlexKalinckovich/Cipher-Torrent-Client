@@ -1,6 +1,10 @@
 package redis_errors
 
-import "fmt"
+import (
+	"fmt"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/default_error_handlers"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/transport"
+)
 
 const RedisFailedConnectionErrorCode = "RedisFailedConnectionError"
 
@@ -29,4 +33,8 @@ func (err *RedisFailedConnectionError) Error() string {
 
 func (err *RedisFailedConnectionError) Code() string {
 	return RedisFailedConnectionErrorCode
+}
+
+func (err *RedisFailedConnectionError) Handle() transport.HTTPResponse {
+	return default_error_handlers.CreateInternalResponse(RedisFailedConnectionErrorCode, err.Error())
 }

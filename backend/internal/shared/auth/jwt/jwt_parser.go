@@ -1,7 +1,7 @@
 package jwt
 
 import (
-	headererrors "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/custom_errors/transport"
+	headererrors "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/custom_errors/token_errors"
 	"time"
 
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/middleware"
