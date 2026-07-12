@@ -55,6 +55,7 @@ func registerV1Routes(engine *gin.Engine, dbConn *sql.DB, redisClient *redis.Cli
 	userSvc := bootstrapUserModule(private, dbConn)
 	bootstrapAuthModule(public, redisClient, userSvc)
 	bootstrapTorrentModule(private, dbConn, redisClient)
+	bootstrapTorrentSignatureModule(private, dbConn)
 }
 
 func createPublicGroup(v1 *gin.RouterGroup) *gin.RouterGroup {

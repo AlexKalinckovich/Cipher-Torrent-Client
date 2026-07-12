@@ -4,10 +4,16 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
+	"crypto/sha256"
+	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/custom_errors/crypto_errors"
+	"github.com/anacrolix/torrent"
+	"github.com/anacrolix/torrent/bencode"
 	"io"
+	"log"
+	"time"
 )
 
 type CryptoServicePort interface {
@@ -65,4 +71,25 @@ func (s *CryptoService) DecryptPrivateKey(ciphertext []byte) ([]byte, error) {
 	}
 
 	return decrypted, nil
+}
+
+func (s *CryptoService) PrepareSignaturePayload(t *torrent.Torrent) ([]byte, error) {
+	infoHash := t.InfoHash().Bytes()
+
+	announceListBencoded, err := bencode.Marshal(t.Metainfo().AnnounceList)
+	if err != nil {
+		log.Printf("PrepareSignaturePayload: error marshalling announce list: %v", err)
+		return nil, err
+	}
+	announceHash := sha256.Sum256(announceListBencoded)
+
+	timestampBytes := make([]byte, 8)
+	binary.BigEndian.PutUint64(timestampBytes, uint64(time.Now().Unix()))
+
+	payload := make([]byte, 0, len(infoHash)+len(announceHash)+len(timestampBytes))
+	payload = append(payload, infoHash...)
+	payload = append(payload, announceHash[:]...)
+	payload = append(payload, timestampBytes...)
+
+	return payload, nil
 }

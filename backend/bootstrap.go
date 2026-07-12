@@ -4,11 +4,16 @@ import (
 	"database/sql"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/handlers/auth_handler"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/handlers/torrent_handler"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/handlers/torrent_signature_handler"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/handlers/user_handler"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/handlers/websocket_handler"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/mapper/torrent/meta_info"
 	userMapper "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/mapper/user"
 	torrent2 "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/repository/torrent"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/repository/torrent_signature"
+	torrent_signing "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/torrent_signature"
+	metaInfoSigning "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/torrent_signature/meta_info_signer"
+	signing "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/torrent_signature/signature_builder"
 	t_validator "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/validator/torrent"
 	"time"
 
@@ -68,6 +73,31 @@ func initializeCryptoService(masterKey string) crypto.CryptoServicePort {
 		panic("failed to initialize crypto service: " + err.Error())
 	}
 	return cr
+}
+
+func bootstrapTorrentSignatureModule(rg *gin.RouterGroup, conn *sql.DB) {
+	userQueries := userDb.New(conn)
+	userRepository := user.NewUserRepository(conn, userQueries)
+
+	signatureQueries := torrentDb.New(conn)
+	signatureRepository := torrent_signature.NewTorrentSignatureRepository(conn, signatureQueries)
+
+	masterKey := config.GetRequiredEnv("AES_MASTER_KEY")
+	cryptoService := initializeCryptoService(masterKey)
+
+	signatureBuilder := signing.NewSignatureBuilder()
+	metaInfoSigner := metaInfoSigning.NewMetaInfoSigner()
+
+	service := torrent_signing.NewService(
+		userRepository,
+		signatureRepository,
+		cryptoService,
+		signatureBuilder,
+		metaInfoSigner,
+	)
+
+	handler := torrent_signature_handler.NewTorrentSignatureHandler(service)
+	handler.RegisterRoutes(rg)
 }
 
 func bootstrapTorrentModule(rg *gin.RouterGroup, conn *sql.DB, redisClient *redis.Client) {

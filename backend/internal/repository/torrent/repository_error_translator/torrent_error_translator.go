@@ -1,10 +1,11 @@
-package repository_errors
+package repository_error_translator
 
 import (
 	"database/sql"
 	"errors"
-	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/repository/user/repository_errors"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/repository/torrent/repository_errors"
 	notFound "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/custom_errors/not_found"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/service_errors"
 	torrentModel "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/model/torrent"
 	"net"
 	"strings"
@@ -57,18 +58,18 @@ func (t *torrentErrorTranslator) classifyMySQLError(err *mysql.MySQLError) error
 
 func (t *torrentErrorTranslator) classifyDuplicateEntry(message string) error {
 	if strings.Contains(message, torrentPrimaryKeyName) {
-		return &DuplicateTorrentError{}
+		return &repository_errors.DuplicateTorrentError{}
 	}
 	if strings.Contains(message, userTorrentPrimaryKeyName) {
-		return &DuplicateUserTorrentError{}
+		return &repository_errors.DuplicateUserTorrentError{}
 	}
-	return &DuplicateTorrentError{}
+	return &repository_errors.DuplicateTorrentError{}
 }
 
 func (t *torrentErrorTranslator) resolveNetworkError(err error) error {
 	var netErr *net.OpError
 	if errors.As(err, &netErr) {
-		return &repository_errors.DatabaseUnavailableError{}
+		return &service_errors.DatabaseUnavailableError{}
 	}
 	return err
 }

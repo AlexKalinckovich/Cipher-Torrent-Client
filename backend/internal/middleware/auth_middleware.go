@@ -1,7 +1,7 @@
 package middleware
 
 import (
-	headererrors "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/custom_errors/transport"
+	headererrors "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/custom_errors/token_errors"
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"strings"

@@ -2,6 +2,8 @@ package repository_errors
 
 import (
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/custom_errors/abstract_error_code"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/default_error_handlers"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/transport"
 )
 
 const RollbackErrorCode abstract_error_code.ErrorCode = "REPOSITORY_ROLLBACK_ERROR"
@@ -28,4 +30,8 @@ func (e *RollbackError) Error() string {
 
 func (e *RollbackError) Unwrap() error {
 	return e.OriginalErr
+}
+
+func (e *RollbackError) Handle() transport.HTTPResponse {
+	return default_error_handlers.CreateInternalResponse(RollbackErrorCode, e.Error())
 }

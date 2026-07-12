@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/service_errors"
 	"net"
 	"strings"
 
@@ -69,7 +70,7 @@ func (t *repoErrorTranslator) classifyDuplicateEntry(message string) error {
 func (t *repoErrorTranslator) resolveNetworkError(err error) error {
 	var netErr *net.OpError
 	if errors.As(err, &netErr) {
-		return &DatabaseUnavailableError{}
+		return &service_errors.DatabaseUnavailableError{}
 	}
 	return err
 }

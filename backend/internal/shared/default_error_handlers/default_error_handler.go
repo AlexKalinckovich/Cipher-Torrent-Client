@@ -47,7 +47,7 @@ func CreateConflictResponse(code abstract_error_code.ErrorCode, message string) 
 	})
 }
 
-func CreateServiceUnavailableHandler(code abstract_error_code.ErrorCode, message string) transport.HTTPResponse {
+func CreateServiceUnavailableResponse(code abstract_error_code.ErrorCode, message string) transport.HTTPResponse {
 	return transport.NewHTTPResponse(http.StatusServiceUnavailable, common.ApiError{
 		Status:    http.StatusServiceUnavailable,
 		ErrorCode: string(code),

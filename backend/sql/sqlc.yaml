@@ -16,3 +16,10 @@ sql:
         package: "repository"
         out: "../internal/service/torrent/generated"
     engine: mysql
+  - schema: "torrent/schema"
+    queries: "torrent/queries/torrent_signatures.sql"
+    gen:
+      go:
+        package: "repository"
+        out: "../internal/service/torrent/generated"
+    engine: mysql

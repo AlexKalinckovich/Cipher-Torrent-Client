@@ -4,7 +4,8 @@ import (
 	"context"
 	"database/sql"
 	torrentMapper "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/mapper/torrent/entity"
-	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/repository/torrent/repository_errors"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/repository/torrent/meta_data_extractor"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/repository/torrent/repository_error_translator"
 	generated "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/torrent/generated"
 	torrentModel "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/model/torrent"
 )
@@ -12,14 +13,16 @@ import (
 type TorrentRepository struct {
 	database   *sql.DB
 	queries    *generated.Queries
-	translator repository_errors.TorrentErrorTranslator
+	translator repository_error_translator.TorrentErrorTranslator
+	extractor  *meta_data_extractor.MetadataExtractor
 }
 
 func NewTorrentRepository(database *sql.DB, queries *generated.Queries) *TorrentRepository {
 	return &TorrentRepository{
 		database:   database,
 		queries:    queries,
-		translator: repository_errors.TorrentTranslator,
+		translator: repository_error_translator.TorrentTranslator,
+		extractor:  meta_data_extractor.NewMetadataExtractor(),
 	}
 }
 
@@ -42,11 +45,20 @@ func (r *TorrentRepository) GetUserTorrents(ctx context.Context, userID int64) (
 	if translatedErr := r.translator.TranslateTorrentError(err); translatedErr != nil {
 		return nil, translatedErr
 	}
+	return r.mapRowsToDTOs(rows), nil
+}
+
+func (r *TorrentRepository) mapRowsToDTOs(rows []generated.GetUserTorrentsRow) []torrentModel.TorrentDTO {
 	dtos := make([]torrentModel.TorrentDTO, len(rows))
 	for i, row := range rows {
-		dtos[i] = torrentMapper.ToDTO(row)
+		dtos[i] = r.mapRowToDTO(row)
 	}
-	return dtos, nil
+	return dtos
+}
+
+func (r *TorrentRepository) mapRowToDTO(row generated.GetUserTorrentsRow) torrentModel.TorrentDTO {
+	files, signatures := r.extractor.Extract(row.InfoBytes)
+	return torrentMapper.ToDTO(row, files, signatures)
 }
 
 func (r *TorrentRepository) UpdateStatus(ctx context.Context, userID int64, infoHash []byte, status torrentModel.TorrentStatus) error {

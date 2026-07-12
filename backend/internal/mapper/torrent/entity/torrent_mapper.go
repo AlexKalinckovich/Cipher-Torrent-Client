@@ -20,7 +20,7 @@ func ToEntity(row generated.Torrent) torrentModel.TorrentEntity {
 	}
 }
 
-func ToDTO(row generated.GetUserTorrentsRow) torrentModel.TorrentDTO {
+func ToDTO(row generated.GetUserTorrentsRow, files []torrentModel.FileDTO, signatures []torrentModel.SignatureDTO) torrentModel.TorrentDTO {
 	return torrentModel.TorrentDTO{
 		InfoHash:    hex.EncodeToString(row.InfoHash),
 		Name:        row.Name,
@@ -29,5 +29,7 @@ func ToDTO(row generated.GetUserTorrentsRow) torrentModel.TorrentDTO {
 		Status:      torrentModel.TorrentStatus(row.Status),
 		Progress:    float32(row.Progress),
 		AddedAt:     row.AddedAt,
+		Files:       files,
+		Signatures:  signatures,
 	}
 }
