@@ -20,7 +20,11 @@ func ToEntity(row generated.Torrent) torrentModel.TorrentEntity {
 	}
 }
 
-func ToDTO(row generated.GetUserTorrentsRow, files []torrentModel.FileDTO, signatures []torrentModel.SignatureDTO) torrentModel.TorrentDTO {
+func ToDTO(
+	row generated.GetUserTorrentsRow,
+	files []torrentModel.FileDTO,
+	signatures []torrentModel.SignatureDTO,
+) torrentModel.TorrentDTO {
 	return torrentModel.TorrentDTO{
 		InfoHash:    hex.EncodeToString(row.InfoHash),
 		Name:        row.Name,

@@ -3,6 +3,7 @@ package torrent
 import (
 	"context"
 	"database/sql"
+
 	torrentMapper "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/mapper/torrent/entity"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/repository/torrent/meta_data_extractor"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/repository/torrent/repository_error_translator"

@@ -13,9 +13,23 @@ VALUES (?, ?, ?, ?);
 SELECT * FROM user_torrents WHERE user_id = ? AND torrent_info_hash = ? LIMIT 1;
 
 -- name: GetUserTorrents :many
-SELECT t.*, ut.status, ut.progress
-FROM torrents t
-         JOIN user_torrents ut ON t.info_hash = ut.torrent_info_hash
+SELECT
+    v.info_hash,
+    v.info_bytes,
+    v.name,
+    v.size_bytes,
+    v.piece_length,
+    v.is_private,
+    v.storage_path,
+    v.added_at,
+    ut.status,
+    ut.progress,
+    v.signature_id,
+    v.signature_blob,
+    v.signer_public_key,
+    v.signature_created_at
+FROM v_torrent_with_signatures v
+         JOIN user_torrents ut ON v.info_hash = ut.torrent_info_hash
 WHERE ut.user_id = ?;
 
 -- name: UpdateUserTorrentStatus :exec

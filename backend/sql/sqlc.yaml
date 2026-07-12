@@ -6,18 +6,16 @@ sql:
       - "user/queries/user_stats.sql"
     gen:
       go:
-        package: "repository_errors"
+        package: "repository"
         out: "../internal/service/user/generated"
     engine: mysql
-  - schema: "torrent/schema"
-    queries: "torrent/queries/torrents.sql"
-    gen:
-      go:
-        package: "repository"
-        out: "../internal/service/torrent/generated"
-    engine: mysql
-  - schema: "torrent/schema"
-    queries: "torrent/queries/torrent_signatures.sql"
+
+  - schema:
+      - "user/schema"       # <--- Важно: сначала user
+      - "torrent/schema"    # <--- Потом torrent
+    queries:
+      - "torrent/queries/torrents.sql"
+      - "torrent/queries/torrent_signatures.sql" # Можно объединить в один блок, если пакет одинаковый
     gen:
       go:
         package: "repository"

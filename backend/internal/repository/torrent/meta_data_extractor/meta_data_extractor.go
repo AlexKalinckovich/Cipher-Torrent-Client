@@ -1,9 +1,7 @@
 package meta_data_extractor
 
 import (
-	"bytes"
 	"encoding/hex"
-	"log"
 	"path/filepath"
 
 	"github.com/anacrolix/torrent/bencode"
@@ -18,25 +16,15 @@ func NewMetadataExtractor() *MetadataExtractor {
 	return &MetadataExtractor{}
 }
 
-func (e *MetadataExtractor) Extract(data []byte) ([]torrentModel.FileDTO, []torrentModel.SignatureDTO) {
-	files := e.extractFiles(data)
-	signatures := e.extractSignatures(data)
+func (e *MetadataExtractor) Extract(infoBytes []byte) ([]torrentModel.FileDTO, []torrentModel.SignatureDTO) {
+	files := e.extractFiles(infoBytes)
+	signatures := e.extractSignatures(infoBytes)
 	return files, signatures
 }
 
-func (e *MetadataExtractor) extractFiles(data []byte) []torrentModel.FileDTO {
-	reader := bytes.NewReader(data)
-	mi, err := metainfo.Load(reader)
-	if err != nil {
-		return nil
-	}
-	return e.unmarshalAndBuild(mi)
-}
-
-func (e *MetadataExtractor) unmarshalAndBuild(mi *metainfo.MetaInfo) []torrentModel.FileDTO {
-	info, err := mi.UnmarshalInfo()
-	if err != nil {
-		log.Println("Error unmarshalling metainfo:", err)
+func (e *MetadataExtractor) extractFiles(infoBytes []byte) []torrentModel.FileDTO {
+	var info metainfo.Info
+	if err := bencode.Unmarshal(infoBytes, &info); err != nil {
 		return nil
 	}
 	return e.buildFileList(&info)
@@ -52,10 +40,7 @@ func (e *MetadataExtractor) buildFileList(info *metainfo.Info) []torrentModel.Fi
 
 func (e *MetadataExtractor) buildSingleFileList(info *metainfo.Info) []torrentModel.FileDTO {
 	return []torrentModel.FileDTO{
-		{
-			Path:      info.BestName(),
-			SizeBytes: info.Length,
-		},
+		{Path: info.BestName(), SizeBytes: info.Length},
 	}
 }
 
@@ -75,28 +60,20 @@ func (e *MetadataExtractor) buildFileDTO(rootDir string, f metainfo.FileInfo) to
 	}
 }
 
-func (e *MetadataExtractor) extractSignatures(data []byte) []torrentModel.SignatureDTO {
+func (e *MetadataExtractor) extractSignatures(infoBytes []byte) []torrentModel.SignatureDTO {
 	var rootDict map[string]interface{}
-	if err := bencode.Unmarshal(data, &rootDict); err != nil {
-		log.Println("Error unmarshalling root dict:", err)
+	if err := bencode.Unmarshal(infoBytes, &rootDict); err != nil {
 		return nil
 	}
 	return e.parseSignaturesRoot(rootDict)
 }
 
 func (e *MetadataExtractor) parseSignaturesRoot(rootDict map[string]interface{}) []torrentModel.SignatureDTO {
-	logDict(rootDict)
 	sigsInterface, ok := rootDict["signatures"].([]interface{})
 	if !ok {
 		return nil
 	}
 	return e.mapSignatures(sigsInterface)
-}
-
-func logDict(rootDict map[string]interface{}) {
-	for k, _ := range rootDict {
-		log.Println(k)
-	}
 }
 
 func (e *MetadataExtractor) mapSignatures(sigsInterface []interface{}) []torrentModel.SignatureDTO {
