@@ -3,34 +3,48 @@ package torrent
 import (
 	"context"
 	"errors"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/repository/torrent/repository_ports"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/torrent/service_ports"
+	"log"
 	"mime/multipart"
 
 	"github.com/anacrolix/torrent/metainfo"
 
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/mapper/torrent/meta_info"
-	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/torrent/ports"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/user"
 	torrentErrors "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/custom_errors/torrent_errors"
+	storage_ports "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/storage/ports"
 	torrentModel "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/model/torrent"
 )
 
+type creationPayload struct {
+	mi     *metainfo.MetaInfo
+	entity torrentModel.TorrentEntity
+	userID int64
+	pubKey []byte
+}
+
 type Service struct {
-	repository ports.TorrentRepositoryPort
-	engine     ports.TorrentEngine
+	repository repository_ports.TorrentRepositoryPort
+	engine     service_ports.TorrentEngine
+	storage    storage_ports.TorrentStoragePort
+	userRepo   user.UserRepositoryPort
 	mapper     *meta_info.MetainfoMapper
-	validator  ports.TorrentValidatorPort
 }
 
 func NewService(
-	repository ports.TorrentRepositoryPort,
-	engine ports.TorrentEngine,
+	repository repository_ports.TorrentRepositoryPort,
+	engine service_ports.TorrentEngine,
+	storage storage_ports.TorrentStoragePort,
+	userRepo user.UserRepositoryPort,
 	mapper *meta_info.MetainfoMapper,
-	validator ports.TorrentValidatorPort,
 ) *Service {
 	return &Service{
 		repository: repository,
 		engine:     engine,
+		storage:    storage,
+		userRepo:   userRepo,
 		mapper:     mapper,
-		validator:  validator,
 	}
 }
 
@@ -42,25 +56,50 @@ func (s *Service) Inspect(file multipart.File) (torrentModel.TorrentEntity, erro
 	return s.mapper.ToEntity(mi)
 }
 
-func (s *Service) Add(ctx context.Context, file multipart.File, userID int64, savePath string) (torrentModel.TorrentDTO, error) {
-	mi, err := metainfo.Load(file)
+func (s *Service) Create(ctx context.Context, req service_ports.CreateTorrentServiceRequest) (torrentModel.TorrentDTO, error) {
+	mi, err := metainfo.Load(req.File)
 	if err != nil {
 		return torrentModel.TorrentDTO{}, err
 	}
-	return s.processAndSave(ctx, mi, userID, savePath)
+	return s.processCreate(ctx, mi, req.UserID)
 }
 
-func (s *Service) processAndSave(ctx context.Context, mi *metainfo.MetaInfo, userID int64, savePath string) (torrentModel.TorrentDTO, error) {
+func (s *Service) processCreate(ctx context.Context, mi *metainfo.MetaInfo, userID int64) (torrentModel.TorrentDTO, error) {
 	entity, err := s.mapper.ToEntity(mi)
 	if err != nil {
 		return torrentModel.TorrentDTO{}, err
 	}
-	entity.StoragePath = savePath
-	return s.saveAndStart(ctx, entity, userID)
+	return s.uploadAndSave(ctx, mi, entity, userID)
 }
 
-func (s *Service) saveAndStart(ctx context.Context, entity torrentModel.TorrentEntity, userID int64) (torrentModel.TorrentDTO, error) {
-	if err := s.repository.AddTorrent(ctx, entity, userID); err != nil {
+func (s *Service) uploadAndSave(ctx context.Context, mi *metainfo.MetaInfo, entity torrentModel.TorrentEntity, userID int64) (torrentModel.TorrentDTO, error) {
+	pubKey, err := s.getUserPublicKey(ctx, userID)
+	if err != nil {
+		return torrentModel.TorrentDTO{}, err
+	}
+	return s.uploadToMinioAndPersist(ctx, mi, entity, userID, pubKey)
+}
+
+func (s *Service) uploadToMinioAndPersist(ctx context.Context, mi *metainfo.MetaInfo, entity torrentModel.TorrentEntity, userID int64, pubKey []byte) (torrentModel.TorrentDTO, error) {
+	storageUploadRequest := storage_ports.StorageUploadRequest{
+		InfoHash:      entity.InfoHash,
+		CreatorPubKey: pubKey,
+		FileBytes:     mi.InfoBytes,
+	}
+	if err := s.storage.UploadBaseTorrent(ctx, storageUploadRequest); err != nil {
+		log.Printf("Error uploading torrent to minio: %v", err)
+		return torrentModel.TorrentDTO{}, err
+	}
+	return s.persistAndStart(ctx, entity, userID, pubKey)
+}
+
+func (s *Service) persistAndStart(ctx context.Context, entity torrentModel.TorrentEntity, userID int64, pubKey []byte) (torrentModel.TorrentDTO, error) {
+	repoReq := repository_ports.CreateTorrentRepositoryRequest{
+		Entity:        entity,
+		CreatorPubKey: pubKey,
+		CreatorUserID: userID,
+	}
+	if err := s.repository.CreateTorrent(ctx, repoReq); err != nil {
 		return torrentModel.TorrentDTO{}, err
 	}
 	return s.startAndBuildDTO(entity)
@@ -73,45 +112,93 @@ func (s *Service) startAndBuildDTO(entity torrentModel.TorrentEntity) (torrentMo
 	return s.mapper.ToDTO(entity, torrentModel.StatusDownloading, 0.0), nil
 }
 
-func (s *Service) GetByInfoHash(ctx context.Context, infoHash []byte) (torrentModel.TorrentEntity, error) {
-	return s.repository.GetByInfoHash(ctx, infoHash)
+func (s *Service) getUserPublicKey(ctx context.Context, userID int64) ([]byte, error) {
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	return user.PublicKey, nil
+}
+
+func (s *Service) Add(ctx context.Context, req service_ports.AddTorrentServiceRequest) error {
+	repoReq := repository_ports.CreateUserTorrentRepositoryRequest{
+		UserID:        req.UserID,
+		InfoHash:      req.InfoHash,
+		CreatorPubKey: req.CreatorPubKey,
+		Status:        torrentModel.StatusIdle,
+	}
+	return s.repository.CreateUserTorrent(ctx, repoReq)
+}
+
+func (s *Service) GetByInfoHash(ctx context.Context, req service_ports.TorrentIdentityServiceRequest) (torrentModel.TorrentEntity, error) {
+	repoReq := repository_ports.TorrentIdentityRepositoryRequest{
+		InfoHash:      req.InfoHash,
+		CreatorPubKey: req.CreatorPubKey,
+	}
+	return s.repository.GetTorrentByIdentity(ctx, repoReq)
 }
 
 func (s *Service) GetUserTorrents(ctx context.Context, userID int64) ([]torrentModel.TorrentDTO, error) {
 	return s.repository.GetUserTorrents(ctx, userID)
 }
 
-func (s *Service) PauseTorrent(ctx context.Context, userID int64, infoHash []byte) error {
-	if err := s.engine.PauseTorrent(infoHash); err != nil {
+func (s *Service) PauseTorrent(ctx context.Context, req service_ports.TorrentIdentityServiceRequest) error {
+	if err := s.engine.PauseTorrent(req.InfoHash); err != nil {
 		return err
 	}
-	return s.repository.UpdateStatus(ctx, userID, infoHash, torrentModel.StatusPaused)
+
+	repoReq := repository_ports.UpdateStatusRepositoryRequest{
+		UserID:        req.UserID,
+		InfoHash:      req.InfoHash,
+		CreatorPubKey: req.CreatorPubKey,
+		Status:        torrentModel.StatusPaused,
+	}
+	return s.repository.UpdateUserTorrentStatus(ctx, repoReq)
 }
 
-func (s *Service) ResumeTorrent(ctx context.Context, userID int64, infoHash []byte) error {
-	entity, err := s.repository.GetByInfoHash(ctx, infoHash)
+func (s *Service) ResumeTorrent(ctx context.Context, req service_ports.TorrentIdentityServiceRequest) error {
+	storageIdentityRequest := storage_ports.StorageIdentityRequest{
+		InfoHash:      req.InfoHash,
+		CreatorPubKey: req.CreatorPubKey,
+	}
+	infoBytes, err := s.storage.DownloadBaseTorrent(ctx, storageIdentityRequest)
 	if err != nil {
+		log.Printf("Error downloading torrent info from storage: %v", err)
 		return err
 	}
-	return s.resumeEngineAndStatus(ctx, entity, userID)
+	return s.resumeEngineAndStatus(ctx, infoBytes, req.UserID, req.InfoHash, req.CreatorPubKey)
 }
 
-func (s *Service) resumeEngineAndStatus(ctx context.Context, entity torrentModel.TorrentEntity, userID int64) error {
-	if err := s.engine.ResumeTorrent(entity.InfoBytes); err != nil {
+func (s *Service) resumeEngineAndStatus(ctx context.Context, infoBytes []byte, userID int64, infoHash []byte, pubKey []byte) error {
+	if err := s.engine.ResumeTorrent(infoBytes); err != nil {
 		return err
 	}
-	return s.repository.UpdateStatus(ctx, userID, entity.InfoHash, torrentModel.StatusDownloading)
+
+	repoReq := repository_ports.UpdateStatusRepositoryRequest{
+		UserID:        userID,
+		InfoHash:      infoHash,
+		CreatorPubKey: pubKey,
+		Status:        torrentModel.StatusDownloading,
+	}
+	return s.repository.UpdateUserTorrentStatus(ctx, repoReq)
 }
 
-func (s *Service) UpdateProgress(ctx context.Context, userID int64, infoHash []byte, progress float32) error {
-	return s.repository.UpdateProgress(ctx, userID, infoHash, progress)
+func (s *Service) UpdateProgress(ctx context.Context, req service_ports.UpdateProgressServiceRequest) error {
+
+	repoReq := repository_ports.UpdateProgressRepositoryRequest{
+		UserID:        req.UserID,
+		InfoHash:      req.InfoHash,
+		CreatorPubKey: req.CreatorPubKey,
+		Progress:      req.Progress,
+	}
+	return s.repository.UpdateUserTorrentProgress(ctx, repoReq)
 }
 
-func (s *Service) DeleteTorrent(ctx context.Context, userID int64, infoHash []byte) error {
-	if err := s.pauseTorrentIfRunning(infoHash); err != nil {
+func (s *Service) DeleteTorrent(ctx context.Context, req service_ports.TorrentIdentityServiceRequest) error {
+	if err := s.pauseTorrentIfRunning(req.InfoHash); err != nil {
 		return err
 	}
-	return s.repository.DeleteTorrent(ctx, infoHash)
+	return s.deleteStorageAndDatabase(ctx, req.UserID, req.InfoHash, req.CreatorPubKey)
 }
 
 func (s *Service) pauseTorrentIfRunning(infoHash []byte) error {
@@ -120,6 +207,25 @@ func (s *Service) pauseTorrentIfRunning(infoHash []byte) error {
 		return nil
 	}
 	return err
+}
+
+func (s *Service) deleteStorageAndDatabase(ctx context.Context, userID int64, infoHash []byte, pubKey []byte) error {
+
+	storageIdentityRequest := storage_ports.StorageIdentityRequest{
+		InfoHash:      infoHash,
+		CreatorPubKey: pubKey,
+	}
+
+	if err := s.storage.DeleteTorrent(ctx, storageIdentityRequest); err != nil {
+		return err
+	}
+
+	repoReq := repository_ports.UserTorrentIdentityRepositoryRequest{
+		UserID:        userID,
+		InfoHash:      infoHash,
+		CreatorPubKey: pubKey,
+	}
+	return s.repository.DeleteUserTorrent(ctx, repoReq)
 }
 
 func (s *Service) isTorrentNotFoundInClient(err error) bool {

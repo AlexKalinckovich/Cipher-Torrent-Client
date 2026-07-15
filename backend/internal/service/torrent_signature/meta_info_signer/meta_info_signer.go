@@ -11,7 +11,7 @@ func NewMetaInfoSigner() *MetaInfoSigner {
 	return &MetaInfoSigner{}
 }
 
-func (s *MetaInfoSigner) InjectSignature(req ports.InjectionRequest) ([]byte, error) {
+func (s *MetaInfoSigner) InjectSignature(req ports.InjectionServiceRequest) ([]byte, error) {
 	sigDict := map[string]interface{}{
 		"ed25519_pubkey": req.PubKey,
 		"signature":      req.Signature,

@@ -16,7 +16,7 @@ func NewSignatureBuilder() *SignatureBuilder {
 	return &SignatureBuilder{}
 }
 
-func (b *SignatureBuilder) BuildPayloadAndSign(req ports.SignatureRequest) (*ports.SignatureResult, error) {
+func (b *SignatureBuilder) BuildPayloadAndSign(req ports.SignatureServiceRequest) (*ports.SignatureServiceResult, error) {
 	announceHash, err := b.hashAnnounceList(req.AnnounceList)
 	if err != nil {
 		return nil, err
@@ -34,7 +34,7 @@ func (b *SignatureBuilder) BuildPayloadAndSign(req ports.SignatureRequest) (*por
 	payloadHash := sha256.Sum256(payload)
 	signature := ed25519.Sign(req.PrivateKey, payload)
 
-	return &ports.SignatureResult{
+	return &ports.SignatureServiceResult{
 		Signature:   signature,
 		PayloadHash: payloadHash[:],
 		Timestamp:   timestamp,
