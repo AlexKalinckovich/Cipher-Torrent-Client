@@ -24,6 +24,12 @@ type CreateSignatureMapRequest struct {
 	TrustLevel    int8
 }
 
+type SignatureInjectionDTO struct {
+	SignerPublicKey []byte
+	SignatureBlob   []byte
+	Timestamp       int64
+}
+
 type TorrentSignatureRepositoryPort interface {
 	CreateSignature(ctx context.Context, entity torrentSignatureModel.TorrentSignatureEntity) error
 	CreateSignatureMap(ctx context.Context, req CreateSignatureMapRequest) error
@@ -31,4 +37,5 @@ type TorrentSignatureRepositoryPort interface {
 	GetByTorrentIdentity(ctx context.Context, req TorrentIdentityRepositoryRequest) ([]torrentSignatureModel.TorrentSignatureEntity, error)
 	GetByUserAndTorrentIdentity(ctx context.Context, req UserTorrentIdentityRepositoryRequest) (*torrentSignatureModel.TorrentSignatureEntity, error)
 	DeleteByTorrentIdentity(ctx context.Context, req TorrentIdentityRepositoryRequest) error
+	GetSignaturesForInjection(ctx context.Context, req TorrentIdentityRepositoryRequest) ([]SignatureInjectionDTO, error)
 }

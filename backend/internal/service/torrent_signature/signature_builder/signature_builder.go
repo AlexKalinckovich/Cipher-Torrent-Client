@@ -4,9 +4,9 @@ import (
 	"crypto/ed25519"
 	"crypto/sha256"
 	"encoding/binary"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/torrent_signature/torrent_signature_service_ports"
 	"time"
 
-	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/torrent_signature/ports"
 	"github.com/anacrolix/torrent/bencode"
 )
 
@@ -16,7 +16,7 @@ func NewSignatureBuilder() *SignatureBuilder {
 	return &SignatureBuilder{}
 }
 
-func (b *SignatureBuilder) BuildPayloadAndSign(req ports.SignatureServiceRequest) (*ports.SignatureServiceResult, error) {
+func (b *SignatureBuilder) BuildPayloadAndSign(req torrent_signature_service_ports.SignatureServiceRequest) (*torrent_signature_service_ports.SignatureServiceResult, error) {
 	announceHash, err := b.hashAnnounceList(req.AnnounceList)
 	if err != nil {
 		return nil, err
@@ -34,7 +34,7 @@ func (b *SignatureBuilder) BuildPayloadAndSign(req ports.SignatureServiceRequest
 	payloadHash := sha256.Sum256(payload)
 	signature := ed25519.Sign(req.PrivateKey, payload)
 
-	return &ports.SignatureServiceResult{
+	return &torrent_signature_service_ports.SignatureServiceResult{
 		Signature:   signature,
 		PayloadHash: payloadHash[:],
 		Timestamp:   timestamp,

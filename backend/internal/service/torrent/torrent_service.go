@@ -1,10 +1,12 @@
 package torrent
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/repository/torrent/repository_ports"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/torrent/service_ports"
+	"io"
 	"log"
 	"mime/multipart"
 
@@ -57,34 +59,42 @@ func (s *Service) Inspect(file multipart.File) (torrentModel.TorrentEntity, erro
 }
 
 func (s *Service) Create(ctx context.Context, req service_ports.CreateTorrentServiceRequest) (torrentModel.TorrentDTO, error) {
-	mi, err := metainfo.Load(req.File)
+	// 1. Read the FULL file bytes from the multipart upload
+	fullFileBytes, err := io.ReadAll(req.File)
 	if err != nil {
 		return torrentModel.TorrentDTO{}, err
 	}
-	return s.processCreate(ctx, mi, req.UserID)
+
+	// 2. Parse the metainfo from the full bytes
+	mi, err := metainfo.Load(bytes.NewReader(fullFileBytes))
+	if err != nil {
+		return torrentModel.TorrentDTO{}, err
+	}
+
+	return s.processCreate(ctx, mi, req.UserID, fullFileBytes)
 }
 
-func (s *Service) processCreate(ctx context.Context, mi *metainfo.MetaInfo, userID int64) (torrentModel.TorrentDTO, error) {
+func (s *Service) processCreate(ctx context.Context, mi *metainfo.MetaInfo, userID int64, fullFileBytes []byte) (torrentModel.TorrentDTO, error) {
 	entity, err := s.mapper.ToEntity(mi)
 	if err != nil {
 		return torrentModel.TorrentDTO{}, err
 	}
-	return s.uploadAndSave(ctx, mi, entity, userID)
+	return s.uploadAndSave(ctx, mi, entity, userID, fullFileBytes)
 }
 
-func (s *Service) uploadAndSave(ctx context.Context, mi *metainfo.MetaInfo, entity torrentModel.TorrentEntity, userID int64) (torrentModel.TorrentDTO, error) {
+func (s *Service) uploadAndSave(ctx context.Context, mi *metainfo.MetaInfo, entity torrentModel.TorrentEntity, userID int64, fullFileBytes []byte) (torrentModel.TorrentDTO, error) {
 	pubKey, err := s.getUserPublicKey(ctx, userID)
 	if err != nil {
 		return torrentModel.TorrentDTO{}, err
 	}
-	return s.uploadToMinioAndPersist(ctx, mi, entity, userID, pubKey)
+	return s.uploadToMinioAndPersist(ctx, mi, entity, userID, pubKey, fullFileBytes)
 }
 
-func (s *Service) uploadToMinioAndPersist(ctx context.Context, mi *metainfo.MetaInfo, entity torrentModel.TorrentEntity, userID int64, pubKey []byte) (torrentModel.TorrentDTO, error) {
+func (s *Service) uploadToMinioAndPersist(ctx context.Context, mi *metainfo.MetaInfo, entity torrentModel.TorrentEntity, userID int64, pubKey []byte, fullFileBytes []byte) (torrentModel.TorrentDTO, error) {
 	storageUploadRequest := storage_ports.StorageUploadRequest{
 		InfoHash:      entity.InfoHash,
 		CreatorPubKey: pubKey,
-		FileBytes:     mi.InfoBytes,
+		FileBytes:     fullFileBytes, // <--- SAVE THE FULL FILE, NOT JUST InfoBytes!
 	}
 	if err := s.storage.UploadBaseTorrent(ctx, storageUploadRequest); err != nil {
 		log.Printf("Error uploading torrent to minio: %v", err)

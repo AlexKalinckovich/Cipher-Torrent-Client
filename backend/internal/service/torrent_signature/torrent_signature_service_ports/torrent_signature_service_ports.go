@@ -1,4 +1,4 @@
-package ports
+package torrent_signature_service_ports
 
 import (
 	"context"
@@ -31,6 +31,11 @@ type InjectionServiceRequest struct {
 	Timestamp int64
 }
 
+type GetSignedTorrentFileRequest struct {
+	InfoHash      []byte
+	CreatorPubKey []byte
+}
+
 type SignatureBuilder interface {
 	BuildPayloadAndSign(req SignatureServiceRequest) (*SignatureServiceResult, error)
 }
@@ -41,4 +46,5 @@ type MetaInfoSigner interface {
 
 type TorrentSigningServicePort interface {
 	SignTorrent(ctx context.Context, req SignTorrentServiceRequest) (torrentModel.TorrentDTO, error)
+	GetSignedTorrentFile(ctx context.Context, req GetSignedTorrentFileRequest) ([]byte, error)
 }

@@ -1,7 +1,8 @@
 package torrent_signature_handler
 
 import (
-	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/torrent_signature/ports"
+	"fmt"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/torrent_signature/torrent_signature_service_ports"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/transport/decoders/base64_decoder"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/transport/decoders/hex_decoder"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/transport/json_binder"
@@ -10,22 +11,28 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+type GetSignedTorrentJSON struct {
+	InfoHash      string `json:"info_hash"`
+	CreatorPubKey string `json:"creator_pub_key"`
+}
+
 type signTorrentJSON struct {
 	InfoHash      string `json:"info_hash"`
 	CreatorPubKey string `json:"creator_pub_key"`
 }
 
 type TorrentSignatureHandler struct {
-	service ports.TorrentSigningServicePort
+	service torrent_signature_service_ports.TorrentSigningServicePort
 }
 
-func NewTorrentSignatureHandler(service ports.TorrentSigningServicePort) *TorrentSignatureHandler {
+func NewTorrentSignatureHandler(service torrent_signature_service_ports.TorrentSigningServicePort) *TorrentSignatureHandler {
 	return &TorrentSignatureHandler{service: service}
 }
 
 func (h *TorrentSignatureHandler) RegisterRoutes(rg *gin.RouterGroup) {
 	torrents := rg.Group("/torrents")
 	torrents.POST("/sign", h.Sign)
+	torrents.GET("/download", h.GetSignedTorrent)
 }
 
 func (h *TorrentSignatureHandler) Sign(c *gin.Context) {
@@ -36,40 +43,75 @@ func (h *TorrentSignatureHandler) Sign(c *gin.Context) {
 	}
 	h.executeSign(c, req)
 }
+func (h *TorrentSignatureHandler) GetSignedTorrent(c *gin.Context) {
+	var jsonReq GetSignedTorrentJSON
+	if err := c.ShouldBindJSON(&jsonReq); err != nil {
+		h.fail(c, err)
+		return
+	}
 
-func (h *TorrentSignatureHandler) buildSignRequest(c *gin.Context) (ports.SignTorrentServiceRequest, error) {
+	infoHash, err := hex_decoder.DecodeHexParam(jsonReq.InfoHash)
+	if err != nil {
+		h.fail(c, err)
+		return
+	}
+
+	creatorPubKey, err := base64_decoder.DecodeBase64Param(jsonReq.CreatorPubKey)
+	if err != nil {
+		h.fail(c, err)
+		return
+	}
+
+	req := torrent_signature_service_ports.GetSignedTorrentFileRequest{
+		InfoHash:      infoHash,
+		CreatorPubKey: creatorPubKey,
+	}
+
+	fileBytes, err := h.service.GetSignedTorrentFile(c.Request.Context(), req)
+	if err != nil {
+		h.fail(c, err)
+		return
+	}
+
+	c.Header("Content-Type", "application/x-bittorrent")
+	c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="%s.torrent"`, jsonReq.InfoHash))
+
+	c.Data(http.StatusOK, "application/x-bittorrent", fileBytes)
+}
+
+func (h *TorrentSignatureHandler) buildSignRequest(c *gin.Context) (torrent_signature_service_ports.SignTorrentServiceRequest, error) {
 	jsonReq := json_binder.BindJSON[signTorrentJSON](c)
 	if jsonReq.Err != nil {
-		return ports.SignTorrentServiceRequest{}, jsonReq.Err
+		return torrent_signature_service_ports.SignTorrentServiceRequest{}, jsonReq.Err
 	}
 	return h.mapToSignRequest(jsonReq.Value, c)
 }
 
-func (h *TorrentSignatureHandler) mapToSignRequest(jsonReq signTorrentJSON, c *gin.Context) (ports.SignTorrentServiceRequest, error) {
+func (h *TorrentSignatureHandler) mapToSignRequest(jsonReq signTorrentJSON, c *gin.Context) (torrent_signature_service_ports.SignTorrentServiceRequest, error) {
 	infoHash, err := hex_decoder.DecodeHexParam(jsonReq.InfoHash)
 	if err != nil {
-		return ports.SignTorrentServiceRequest{}, err
+		return torrent_signature_service_ports.SignTorrentServiceRequest{}, err
 	}
 	return h.decodeCreatorAndBuild(infoHash, jsonReq.CreatorPubKey, c)
 }
 
-func (h *TorrentSignatureHandler) decodeCreatorAndBuild(infoHash []byte, creatorPubKeyHex string, c *gin.Context) (ports.SignTorrentServiceRequest, error) {
+func (h *TorrentSignatureHandler) decodeCreatorAndBuild(infoHash []byte, creatorPubKeyHex string, c *gin.Context) (torrent_signature_service_ports.SignTorrentServiceRequest, error) {
 	creatorPubKey, err := base64_decoder.DecodeBase64Param(creatorPubKeyHex)
 	if err != nil {
-		return ports.SignTorrentServiceRequest{}, err
+		return torrent_signature_service_ports.SignTorrentServiceRequest{}, err
 	}
 	return h.buildFinalRequest(infoHash, creatorPubKey, c), nil
 }
 
-func (h *TorrentSignatureHandler) buildFinalRequest(infoHash []byte, creatorPubKey []byte, c *gin.Context) ports.SignTorrentServiceRequest {
-	return ports.SignTorrentServiceRequest{
+func (h *TorrentSignatureHandler) buildFinalRequest(infoHash []byte, creatorPubKey []byte, c *gin.Context) torrent_signature_service_ports.SignTorrentServiceRequest {
+	return torrent_signature_service_ports.SignTorrentServiceRequest{
 		InfoHash:      infoHash,
 		CreatorPubKey: creatorPubKey,
 		UserID:        h.extractUserID(c),
 	}
 }
 
-func (h *TorrentSignatureHandler) executeSign(c *gin.Context, req ports.SignTorrentServiceRequest) {
+func (h *TorrentSignatureHandler) executeSign(c *gin.Context, req torrent_signature_service_ports.SignTorrentServiceRequest) {
 	dto, err := h.service.SignTorrent(c.Request.Context(), req)
 	h.respond(c, http.StatusOK, dto, err)
 }

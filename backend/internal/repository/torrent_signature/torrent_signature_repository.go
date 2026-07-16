@@ -91,6 +91,25 @@ func (r *TorrentSignatureRepository) commitTx(rollbacker *tx.Rollbacker) error {
 	return nil
 }
 
+func (r *TorrentSignatureRepository) GetSignaturesForInjection(ctx context.Context, req torrent_signature_repository_ports.TorrentIdentityRepositoryRequest) ([]torrent_signature_repository_ports.SignatureInjectionDTO, error) {
+	params := r.mapIdentityParams(req)
+
+	rows, err := r.queries.GetSignaturesWithSignerKey(ctx, params)
+	if err != nil {
+		return nil, err
+	}
+
+	dtos := make([]torrent_signature_repository_ports.SignatureInjectionDTO, len(rows))
+	for i, row := range rows {
+		dtos[i] = torrent_signature_repository_ports.SignatureInjectionDTO{
+			SignerPublicKey: row.SignerPublicKey,
+			SignatureBlob:   row.SignatureBlob,
+			Timestamp:       row.CreatedAt.Unix(),
+		}
+	}
+	return dtos, nil
+}
+
 func (r *TorrentSignatureRepository) GetByTorrentIdentity(ctx context.Context, req torrent_signature_repository_ports.TorrentIdentityRepositoryRequest) ([]torrentSignatureModel.TorrentSignatureEntity, error) {
 	params := r.mapIdentityParams(req)
 	rows, err := r.queries.GetSignaturesWithSignerKey(ctx, params)
