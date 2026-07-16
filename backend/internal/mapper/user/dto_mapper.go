@@ -24,7 +24,7 @@ func (m *UserDTOMapper) ToUserFullDTO(u db.User, s db.UserStat) userModel.UserFu
 }
 
 func (m *UserDTOMapper) toUserDTO(src db.User) userModel.User {
-	encodedToStringPublicKey := base64.StdEncoding.EncodeToString(src.PublicKey)
+	encodedToStringPublicKey := base64.RawURLEncoding.EncodeToString(src.PublicKey)
 	return userModel.User{
 		Id:        src.ID,
 		Email:     src.Email,

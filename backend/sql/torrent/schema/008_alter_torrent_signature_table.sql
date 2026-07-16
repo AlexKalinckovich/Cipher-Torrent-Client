@@ -1,5 +1,4 @@
 -- +goose Up
--- +goose StatementBegin
 
 ALTER TABLE `torrent_signatures`
     ADD COLUMN `torrent_hash` BINARY(20) NOT NULL DEFAULT (UNHEX(REPEAT('00', 20))) AFTER `id`;
@@ -26,10 +25,7 @@ ALTER TABLE `torrent_signatures`
 ALTER TABLE `torrent_signatures`
     ADD UNIQUE INDEX `uk_torrent_user_signature` (`torrent_hash`, `user_id`);
 
--- +goose StatementEnd
-
 -- +goose Down
--- +goose StatementBegin
 
 ALTER TABLE `torrent_signatures`
     DROP FOREIGN KEY `fk_signature_user`;
@@ -51,5 +47,3 @@ ALTER TABLE `torrent_signatures`
 
 ALTER TABLE `torrent_signatures`
     DROP COLUMN `torrent_hash`;
-
--- +goose StatementEnd

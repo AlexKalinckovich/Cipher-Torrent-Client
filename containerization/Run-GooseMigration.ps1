@@ -119,12 +119,9 @@ class ArgumentBuilder {
                 return $baseArgs + @('up')
             }
         } else {
-            # Логика для Down
             if ($target -ge 0) {
-                # Если указан Target, используем down-to <version>
                 return $baseArgs + @('down-to', $target.ToString())
             } else {
-                # Если Target не указан, используем просто down (откат на 1 шаг)
                 return $baseArgs + @('down')
             }
         }

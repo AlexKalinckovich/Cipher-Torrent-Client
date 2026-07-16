@@ -15,7 +15,6 @@ func ToEntity(row generated.Torrent) torrentModel.TorrentEntity {
 		SizeBytes:   row.SizeBytes,
 		PieceLength: int(row.PieceLength),
 		IsPrivate:   row.IsPrivate,
-		StoragePath: row.StoragePath,
 		AddedAt:     row.AddedAt,
 	}
 }
@@ -29,7 +28,7 @@ func ToDTO(
 		InfoHash:    hex.EncodeToString(row.InfoHash),
 		Name:        row.Name,
 		SizeBytes:   row.SizeBytes,
-		StoragePath: row.StoragePath,
+		StoragePath: "",
 		Status:      torrentModel.TorrentStatus(row.Status),
 		Progress:    float32(row.Progress),
 		AddedAt:     row.AddedAt,

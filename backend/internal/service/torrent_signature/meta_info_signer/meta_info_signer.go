@@ -1,7 +1,7 @@
 package signing
 
 import (
-	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/torrent_signature/ports"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/torrent_signature/torrent_signature_service_ports"
 	"github.com/anacrolix/torrent/bencode"
 )
 
@@ -11,7 +11,7 @@ func NewMetaInfoSigner() *MetaInfoSigner {
 	return &MetaInfoSigner{}
 }
 
-func (s *MetaInfoSigner) InjectSignature(req ports.InjectionRequest) ([]byte, error) {
+func (s *MetaInfoSigner) InjectSignature(req torrent_signature_service_ports.InjectionServiceRequest) ([]byte, error) {
 	sigDict := map[string]interface{}{
 		"ed25519_pubkey": req.PubKey,
 		"signature":      req.Signature,

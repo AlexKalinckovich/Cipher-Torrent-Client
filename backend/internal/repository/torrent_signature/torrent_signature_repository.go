@@ -5,45 +5,81 @@ import (
 	"database/sql"
 	"errors"
 	repositoryErrors "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/repository/torrent_signature/torrent_signature_repository_errors"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/repository/torrent_signature/torrent_signature_repository_ports"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/repository/tx"
 	generated "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/torrent/generated"
-	repository "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/torrent/generated"
-	"github.com/go-sql-driver/mysql"
-
 	torrentSignatureModel "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/model/torrent_signature"
+	"github.com/go-sql-driver/mysql"
 )
 
 type TorrentSignatureRepository struct {
 	db      *sql.DB
-	queries *repository.Queries
+	queries *generated.Queries
 }
 
 func NewTorrentSignatureRepository(db *sql.DB, queries *generated.Queries) *TorrentSignatureRepository {
 	return &TorrentSignatureRepository{db: db, queries: queries}
 }
 
-func (r *TorrentSignatureRepository) Create(ctx context.Context, entity torrentSignatureModel.TorrentSignatureEntity) error {
-	params := r.mapToCreateParams(entity)
-	_, err := r.queries.CreateTorrentSignature(ctx, params)
+func (r *TorrentSignatureRepository) CreateSignature(
+	ctx context.Context,
+	entity torrentSignatureModel.TorrentSignatureEntity,
+) error {
+	params := r.mapToCreateSignatureParams(entity)
+	_, err := r.queries.CreateSignature(ctx, params)
 	return r.translateCreateError(err)
 }
 
-func (r *TorrentSignatureRepository) CreateInTransaction(ctx context.Context, entity torrentSignatureModel.TorrentSignatureEntity) error {
+func (r *TorrentSignatureRepository) CreateSignatureMap(
+	ctx context.Context,
+	req torrent_signature_repository_ports.CreateSignatureMapRequest,
+) error {
+	params := r.mapToCreateSignatureMapParams(req)
+	_, err := r.queries.CreateSignatureMap(ctx, params)
+	return r.translateCreateError(err)
+}
+
+func (r *TorrentSignatureRepository) CreateInTransaction(
+	ctx context.Context,
+	sigEntity torrentSignatureModel.TorrentSignatureEntity,
+	mapReq torrent_signature_repository_ports.CreateSignatureMapRequest,
+) error {
 	sqlTx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	rollbacker := tx.NewRollbacker(sqlTx)
 	queries := r.queries.WithTx(sqlTx)
-	return r.executeCreateInTx(ctx, queries, rollbacker, entity)
+	return r.executeCreateInTx(ctx, queries, rollbacker, sigEntity, mapReq)
 }
 
-func (r *TorrentSignatureRepository) executeCreateInTx(ctx context.Context, queries *generated.Queries, rollbacker *tx.Rollbacker, entity torrentSignatureModel.TorrentSignatureEntity) error {
-	params := r.mapToCreateParams(entity)
-	_, err := queries.CreateTorrentSignature(ctx, params)
+func (r *TorrentSignatureRepository) executeCreateInTx(
+	ctx context.Context,
+	queries *generated.Queries,
+	rollbacker *tx.Rollbacker,
+	sigEntity torrentSignatureModel.TorrentSignatureEntity,
+	mapReq torrent_signature_repository_ports.CreateSignatureMapRequest,
+) error {
+	sigParams := r.mapToCreateSignatureParams(sigEntity)
+
+	result, err := queries.CreateSignature(ctx, sigParams)
 	if err != nil {
 		return rollbacker.Rollback(r.translateCreateError(err))
 	}
+
+	sigID, err := result.LastInsertId()
+	if err != nil {
+		return rollbacker.Rollback(err)
+	}
+
+	mapReq.SignatureID = sigID
+
+	mapParams := r.mapToCreateSignatureMapParams(mapReq)
+	_, err = queries.CreateSignatureMap(ctx, mapParams)
+	if err != nil {
+		return rollbacker.Rollback(r.translateCreateError(err))
+	}
+
 	return r.commitTx(rollbacker)
 }
 
@@ -55,28 +91,81 @@ func (r *TorrentSignatureRepository) commitTx(rollbacker *tx.Rollbacker) error {
 	return nil
 }
 
-func (r *TorrentSignatureRepository) GetByTorrentHash(ctx context.Context, torrentHash []byte) ([]torrentSignatureModel.TorrentSignatureEntity, error) {
-	rows, err := r.queries.GetTorrentSignaturesByHash(ctx, torrentHash)
+func (r *TorrentSignatureRepository) GetSignaturesForInjection(ctx context.Context, req torrent_signature_repository_ports.TorrentIdentityRepositoryRequest) ([]torrent_signature_repository_ports.SignatureInjectionDTO, error) {
+	params := r.mapIdentityParams(req)
+
+	rows, err := r.queries.GetSignaturesWithSignerKey(ctx, params)
+	if err != nil {
+		return nil, err
+	}
+
+	dtos := make([]torrent_signature_repository_ports.SignatureInjectionDTO, len(rows))
+	for i, row := range rows {
+		dtos[i] = torrent_signature_repository_ports.SignatureInjectionDTO{
+			SignerPublicKey: row.SignerPublicKey,
+			SignatureBlob:   row.SignatureBlob,
+			Timestamp:       row.CreatedAt.Unix(),
+		}
+	}
+	return dtos, nil
+}
+
+func (r *TorrentSignatureRepository) GetByTorrentIdentity(ctx context.Context, req torrent_signature_repository_ports.TorrentIdentityRepositoryRequest) ([]torrentSignatureModel.TorrentSignatureEntity, error) {
+	params := r.mapIdentityParams(req)
+	rows, err := r.queries.GetSignaturesWithSignerKey(ctx, params)
 	return r.mapRowsToEntities(rows), err
 }
 
-func (r *TorrentSignatureRepository) GetByUserAndTorrentHash(ctx context.Context, userID int64, torrentHash []byte) (*torrentSignatureModel.TorrentSignatureEntity, error) {
-	params := generated.GetTorrentSignatureByUserAndHashParams{TorrentHash: torrentHash, UserID: userID}
-	row, err := r.queries.GetTorrentSignatureByUserAndHash(ctx, params)
-	return r.mapRowToEntityPtr(row), err
+func (r *TorrentSignatureRepository) GetByUserAndTorrentIdentity(ctx context.Context, req torrent_signature_repository_ports.UserTorrentIdentityRepositoryRequest) (*torrentSignatureModel.TorrentSignatureEntity, error) {
+	params := r.mapUserAndIdentityParams(req)
+	row, err := r.queries.GetSignatureMapByTorrentAndSigner(ctx, params)
+	return r.mapRowToEntityPtrFromMap(row), err
 }
 
-func (r *TorrentSignatureRepository) DeleteByTorrentHash(ctx context.Context, torrentHash []byte) error {
-	_, err := r.queries.DeleteTorrentSignaturesByHash(ctx, torrentHash)
+func (r *TorrentSignatureRepository) DeleteByTorrentIdentity(ctx context.Context, req torrent_signature_repository_ports.TorrentIdentityRepositoryRequest) error {
+	params := r.mapIdentityParamsToDeleteParams(req)
+	_, err := r.queries.DeleteSignatureMapByTorrent(ctx, params)
 	return err
 }
 
-func (r *TorrentSignatureRepository) mapToCreateParams(entity torrentSignatureModel.TorrentSignatureEntity) generated.CreateTorrentSignatureParams {
-	return generated.CreateTorrentSignatureParams{
+func (r *TorrentSignatureRepository) mapToCreateSignatureParams(entity torrentSignatureModel.TorrentSignatureEntity) generated.CreateSignatureParams {
+	return generated.CreateSignatureParams{
 		TorrentHash:   entity.TorrentHash,
 		UserID:        entity.UserID,
 		SignatureBlob: entity.SignatureBlob,
 		PayloadHash:   entity.PayloadHash,
+	}
+}
+
+func (r *TorrentSignatureRepository) mapToCreateSignatureMapParams(req torrent_signature_repository_ports.CreateSignatureMapRequest) generated.CreateSignatureMapParams {
+	return generated.CreateSignatureMapParams{
+		TorrentInfoHash:  req.TorrentHash,
+		CreatorPublicKey: req.CreatorPubKey,
+		SignatureID:      req.SignatureID,
+		SignerID:         req.SignerID,
+		TrustLevel:       req.TrustLevel,
+	}
+}
+
+func (r *TorrentSignatureRepository) mapIdentityParamsToDeleteParams(req torrent_signature_repository_ports.TorrentIdentityRepositoryRequest) generated.DeleteSignatureMapByTorrentParams {
+	return generated.DeleteSignatureMapByTorrentParams{
+		TorrentInfoHash:  req.InfoHash,
+		CreatorPublicKey: req.CreatorPubKey,
+	}
+}
+
+func (r *TorrentSignatureRepository) mapIdentityParams(req torrent_signature_repository_ports.TorrentIdentityRepositoryRequest) generated.GetSignaturesWithSignerKeyParams {
+	return generated.GetSignaturesWithSignerKeyParams{
+		TorrentInfoHash:  req.InfoHash,
+		CreatorPublicKey: req.CreatorPubKey,
+	}
+}
+
+func (r *TorrentSignatureRepository) mapUserAndIdentityParams(req torrent_signature_repository_ports.UserTorrentIdentityRepositoryRequest) generated.GetSignatureMapByTorrentAndSignerParams {
+	return generated.GetSignatureMapByTorrentAndSignerParams{
+		TorrentInfoHash:  req.InfoHash,
+		CreatorPublicKey: req.CreatorPubKey,
+		SignerID:         req.UserID,
 	}
 }
 
@@ -95,26 +184,29 @@ func (r *TorrentSignatureRepository) isDuplicateKeyError(err error) bool {
 	return false
 }
 
-func (r *TorrentSignatureRepository) mapRowsToEntities(rows []generated.TorrentSignature) []torrentSignatureModel.TorrentSignatureEntity {
+func (r *TorrentSignatureRepository) mapRowsToEntities(rows []generated.GetSignaturesWithSignerKeyRow) []torrentSignatureModel.TorrentSignatureEntity {
 	entities := make([]torrentSignatureModel.TorrentSignatureEntity, len(rows))
 	for i, row := range rows {
-		entities[i] = r.mapRowToEntity(row)
+		entities[i] = r.mapRowToEntityFromKey(row)
 	}
 	return entities
 }
 
-func (r *TorrentSignatureRepository) mapRowToEntity(row generated.TorrentSignature) torrentSignatureModel.TorrentSignatureEntity {
+func (r *TorrentSignatureRepository) mapRowToEntityFromKey(row generated.GetSignaturesWithSignerKeyRow) torrentSignatureModel.TorrentSignatureEntity {
 	return torrentSignatureModel.TorrentSignatureEntity{
-		ID:            row.ID,
+		ID:            row.SignatureID,
 		TorrentHash:   row.TorrentHash,
-		UserID:        row.UserID,
+		UserID:        row.SignerID,
 		SignatureBlob: row.SignatureBlob,
 		PayloadHash:   row.PayloadHash,
 		CreatedAt:     row.CreatedAt,
 	}
 }
 
-func (r *TorrentSignatureRepository) mapRowToEntityPtr(row generated.TorrentSignature) *torrentSignatureModel.TorrentSignatureEntity {
-	entity := r.mapRowToEntity(row)
+func (r *TorrentSignatureRepository) mapRowToEntityPtrFromMap(row generated.TorrentSignatureMap) *torrentSignatureModel.TorrentSignatureEntity {
+	entity := torrentSignatureModel.TorrentSignatureEntity{
+		TorrentHash: row.TorrentInfoHash,
+		UserID:      row.SignerID,
+	}
 	return &entity
 }

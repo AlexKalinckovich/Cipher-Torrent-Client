@@ -18,7 +18,9 @@ func NewMetadataExtractor() *MetadataExtractor {
 
 func (e *MetadataExtractor) Extract(infoBytes []byte) ([]torrentModel.FileDTO, []torrentModel.SignatureDTO) {
 	files := e.extractFiles(infoBytes)
+
 	signatures := e.extractSignatures(infoBytes)
+
 	return files, signatures
 }
 
@@ -62,9 +64,11 @@ func (e *MetadataExtractor) buildFileDTO(rootDir string, f metainfo.FileInfo) to
 
 func (e *MetadataExtractor) extractSignatures(infoBytes []byte) []torrentModel.SignatureDTO {
 	var rootDict map[string]interface{}
+
 	if err := bencode.Unmarshal(infoBytes, &rootDict); err != nil {
 		return nil
 	}
+
 	return e.parseSignaturesRoot(rootDict)
 }
 

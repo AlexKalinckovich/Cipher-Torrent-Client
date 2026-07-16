@@ -3,23 +3,14 @@ package user_handler
 import (
 	"encoding/base64"
 	serviceUser "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/user"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/custom_errors/user_errors"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/transport/json_binder"
 	userModel "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/model/user"
 	"github.com/gin-gonic/gin"
 	"log"
 	"net/http"
 	"strconv"
 )
-
-type bindResult[T any] struct {
-	Value T
-	Err   error
-}
-
-func bindJSON[T any](c *gin.Context) bindResult[T] {
-	var value T
-	err := c.ShouldBindJSON(&value)
-	return bindResult[T]{Value: value, Err: err}
-}
 
 type UserHandler struct {
 	service serviceUser.UserServicePort
@@ -37,7 +28,7 @@ func (h *UserHandler) RegisterRoutes(rg *gin.RouterGroup) {
 		users.GET("/email/:email", h.GetByEmail)
 		users.GET("/nickname/:nickname", h.GetByNickname)
 		users.GET("/password/:email", h.GetPasswordHash)
-		users.GET("/public-key/*key", h.GetByPublicKey)
+		users.GET("/public-key", h.GetByPublicKey)
 		users.PUT("/:id", h.Update)
 		users.PATCH("/:id", h.Patch)
 		users.DELETE("/:id", h.Delete)
@@ -45,11 +36,11 @@ func (h *UserHandler) RegisterRoutes(rg *gin.RouterGroup) {
 }
 
 func (h *UserHandler) Create(c *gin.Context) {
-	result := bindJSON[serviceUser.CreateUserInput](c)
+	result := json_binder.BindJSON[serviceUser.CreateUserInput](c)
 	h.handleCreateBind(c, result)
 }
 
-func (h *UserHandler) handleCreateBind(c *gin.Context, result bindResult[serviceUser.CreateUserInput]) {
+func (h *UserHandler) handleCreateBind(c *gin.Context, result json_binder.BindResult[serviceUser.CreateUserInput]) {
 	if result.Err != nil {
 		h.fail(c, result.Err)
 		return
@@ -108,21 +99,22 @@ func (h *UserHandler) GetPasswordHash(c *gin.Context) {
 }
 
 func (h *UserHandler) GetByPublicKey(c *gin.Context) {
-	keyParam := c.Param("key")
-	if len(keyParam) > 0 && keyParam[0] == '/' {
-		keyParam = keyParam[1:]
+	keyParam := c.Query("pub_key")
+
+	if keyParam == "" {
+		h.fail(c, user_errors.NewPublicKeyNotProvidedError())
+		return
 	}
 
-	keyBytes, err := base64.StdEncoding.DecodeString(keyParam)
-	h.handlePublicKeyDecode(c, keyBytes, err)
-}
+	keyBytes, err := base64.RawURLEncoding.DecodeString(keyParam)
 
-func (h *UserHandler) handlePublicKeyDecode(c *gin.Context, keyBytes []byte, err error) {
 	if err != nil {
 		h.fail(c, err)
 		return
 	}
+
 	res, serviceErr := h.service.GetByPublicKey(c.Request.Context(), keyBytes)
+
 	h.handleGetResult(c, res, serviceErr)
 }
 
@@ -136,11 +128,11 @@ func (h *UserHandler) handleUpdateID(c *gin.Context, id int64, err error) {
 		h.fail(c, err)
 		return
 	}
-	result := bindJSON[serviceUser.UpdateUserInput](c)
+	result := json_binder.BindJSON[serviceUser.UpdateUserInput](c)
 	h.handleUpdateBind(c, id, result)
 }
 
-func (h *UserHandler) handleUpdateBind(c *gin.Context, id int64, result bindResult[serviceUser.UpdateUserInput]) {
+func (h *UserHandler) handleUpdateBind(c *gin.Context, id int64, result json_binder.BindResult[serviceUser.UpdateUserInput]) {
 	if result.Err != nil {
 		h.fail(c, result.Err)
 		return
@@ -168,11 +160,11 @@ func (h *UserHandler) handlePatchID(c *gin.Context, id int64, err error) {
 		h.fail(c, err)
 		return
 	}
-	result := bindJSON[serviceUser.PatchUserFields](c)
+	result := json_binder.BindJSON[serviceUser.PatchUserFields](c)
 	h.handlePatchBind(c, id, result)
 }
 
-func (h *UserHandler) handlePatchBind(c *gin.Context, id int64, result bindResult[serviceUser.PatchUserFields]) {
+func (h *UserHandler) handlePatchBind(c *gin.Context, id int64, result json_binder.BindResult[serviceUser.PatchUserFields]) {
 	if result.Err != nil {
 		h.fail(c, result.Err)
 		return

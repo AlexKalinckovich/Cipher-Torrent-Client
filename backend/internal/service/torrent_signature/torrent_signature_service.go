@@ -9,19 +9,18 @@ import (
 	"errors"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/repository/torrent/meta_data_extractor"
 	repositoryErrors "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/repository/torrent_signature/torrent_signature_repository_errors"
-	"io"
-	"mime/multipart"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/repository/torrent_signature/torrent_signature_repository_ports"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/torrent_signature/torrent_signature_service_ports"
+	userService "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/user"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/security"
+	storage_ports "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/storage/ports"
+	torrentModel "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/model/torrent"
+	torrentSignatureModel "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/model/torrent_signature"
+	"log"
 	"time"
 
 	"github.com/anacrolix/torrent/bencode"
 	"github.com/anacrolix/torrent/metainfo"
-
-	torrentSignerPorts "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/repository/torrent_signature/ports"
-	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/torrent_signature/ports"
-	userService "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/user"
-	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/security"
-	torrentModel "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/model/torrent"
-	torrentSignatureModel "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/model/torrent_signature"
 )
 
 type decryptedKeys struct {
@@ -31,19 +30,21 @@ type decryptedKeys struct {
 
 type Service struct {
 	userRepo         userService.UserRepositoryPort
-	signatureRepo    torrentSignerPorts.TorrentSignatureRepositoryPort
+	signatureRepo    torrent_signature_repository_ports.TorrentSignatureRepositoryPort
 	cryptoService    security.CryptoServicePort
-	signatureBuilder ports.SignatureBuilder
-	metaInfoSigner   ports.MetaInfoSigner
+	signatureBuilder torrent_signature_service_ports.SignatureBuilder
+	metaInfoSigner   torrent_signature_service_ports.MetaInfoSigner
+	minioRepo        storage_ports.TorrentStoragePort
 	extractor        *meta_data_extractor.MetadataExtractor
 }
 
 func NewService(
 	userRepo userService.UserRepositoryPort,
-	signatureRepo torrentSignerPorts.TorrentSignatureRepositoryPort,
+	signatureRepo torrent_signature_repository_ports.TorrentSignatureRepositoryPort,
 	cryptoService security.CryptoServicePort,
-	signatureBuilder ports.SignatureBuilder,
-	metaInfoSigner ports.MetaInfoSigner,
+	signatureBuilder torrent_signature_service_ports.SignatureBuilder,
+	minioRepo storage_ports.TorrentStoragePort,
+	metaInfoSigner torrent_signature_service_ports.MetaInfoSigner,
 ) *Service {
 	return &Service{
 		userRepo:         userRepo,
@@ -51,24 +52,41 @@ func NewService(
 		cryptoService:    cryptoService,
 		signatureBuilder: signatureBuilder,
 		metaInfoSigner:   metaInfoSigner,
+		minioRepo:        minioRepo,
 		extractor:        meta_data_extractor.NewMetadataExtractor(),
 	}
 }
 
-func (s *Service) SignTorrent(ctx context.Context, file multipart.File, userID int64) (torrentModel.TorrentDTO, error) {
-	fileBytes, err := io.ReadAll(file)
+func (s *Service) SignTorrent(ctx context.Context, req torrent_signature_service_ports.SignTorrentServiceRequest) (torrentModel.TorrentDTO, error) {
+	storageIdentityReq := storage_ports.StorageIdentityRequest{
+		InfoHash:      req.InfoHash,
+		CreatorPubKey: req.CreatorPubKey,
+	}
+	fileBytes, err := s.minioRepo.DownloadBaseTorrent(ctx, storageIdentityReq)
 	if err != nil {
+		log.Println("Error downloading torrent file", err.Error())
 		return torrentModel.TorrentDTO{}, err
 	}
-	return s.processSigning(ctx, fileBytes, userID)
+
+	return s.processSigning(ctx, fileBytes, req.UserID, req.InfoHash, req.CreatorPubKey)
 }
 
-func (s *Service) processSigning(ctx context.Context, fileBytes []byte, userID int64) (torrentModel.TorrentDTO, error) {
+func (s *Service) processSigning(ctx context.Context, fileBytes []byte, userID int64, infoHash []byte, torrentCreatorPubKey []byte) (torrentModel.TorrentDTO, error) {
 	rootDict, mi, err := s.parseTorrentBytes(fileBytes)
 	if err != nil {
 		return torrentModel.TorrentDTO{}, err
 	}
-	return s.signAndPersist(ctx, rootDict, mi, userID)
+
+	keys, err := s.getDecryptedKeyPair(ctx, userID)
+	if err != nil {
+		return torrentModel.TorrentDTO{}, err
+	}
+
+	if err := s.ensureNotSigned(ctx, userID, infoHash, torrentCreatorPubKey); err != nil {
+		return torrentModel.TorrentDTO{}, err
+	}
+
+	return s.buildSignInjectAndSave(ctx, rootDict, mi, infoHash, userID, keys, torrentCreatorPubKey)
 }
 
 func (s *Service) parseTorrentBytes(fileBytes []byte) (map[string]interface{}, *metainfo.MetaInfo, error) {
@@ -80,16 +98,13 @@ func (s *Service) parseTorrentBytes(fileBytes []byte) (map[string]interface{}, *
 	return rootDict, mi, err
 }
 
-func (s *Service) signAndPersist(ctx context.Context, rootDict map[string]interface{}, mi *metainfo.MetaInfo, userID int64) (torrentModel.TorrentDTO, error) {
-	infoHash := mi.HashInfoBytes().Bytes()
-	if err := s.ensureNotSigned(ctx, userID, infoHash); err != nil {
-		return torrentModel.TorrentDTO{}, err
+func (s *Service) ensureNotSigned(ctx context.Context, userID int64, infoHash []byte, torrentCreatorPubKey []byte) error {
+	req := torrent_signature_repository_ports.UserTorrentIdentityRepositoryRequest{
+		UserID:        userID,
+		InfoHash:      infoHash,
+		CreatorPubKey: torrentCreatorPubKey,
 	}
-	return s.buildSignInjectAndSave(ctx, rootDict, mi, infoHash, userID)
-}
-
-func (s *Service) ensureNotSigned(ctx context.Context, userID int64, infoHash []byte) error {
-	_, err := s.signatureRepo.GetByUserAndTorrentHash(ctx, userID, infoHash)
+	_, err := s.signatureRepo.GetByUserAndTorrentIdentity(ctx, req)
 	if err == nil {
 		return repositoryErrors.NewDuplicateSignatureError()
 	}
@@ -103,12 +118,8 @@ func (s *Service) translateNotFoundError(err error) error {
 	return err
 }
 
-func (s *Service) buildSignInjectAndSave(ctx context.Context, rootDict map[string]interface{}, mi *metainfo.MetaInfo, infoHash []byte, userID int64) (torrentModel.TorrentDTO, error) {
-	keys, err := s.getDecryptedKeyPair(ctx, userID)
-	if err != nil {
-		return torrentModel.TorrentDTO{}, err
-	}
-	return s.signInjectAndPersist(ctx, rootDict, mi, infoHash, userID, keys)
+func (s *Service) buildSignInjectAndSave(ctx context.Context, rootDict map[string]interface{}, mi *metainfo.MetaInfo, infoHash []byte, userID int64, keys *decryptedKeys, torrentCreatorPubKey []byte) (torrentModel.TorrentDTO, error) {
+	return s.signInjectAndPersist(ctx, rootDict, mi, infoHash, userID, keys, torrentCreatorPubKey)
 }
 
 func (s *Service) getDecryptedKeyPair(ctx context.Context, userID int64) (*decryptedKeys, error) {
@@ -129,16 +140,16 @@ func (s *Service) decryptAndExtractKeys(ciphertext []byte) (*decryptedKeys, erro
 	return &decryptedKeys{PrivateKey: privKey, PublicKey: pubKey}, nil
 }
 
-func (s *Service) signInjectAndPersist(ctx context.Context, rootDict map[string]interface{}, mi *metainfo.MetaInfo, infoHash []byte, userID int64, keys *decryptedKeys) (torrentModel.TorrentDTO, error) {
+func (s *Service) signInjectAndPersist(ctx context.Context, rootDict map[string]interface{}, mi *metainfo.MetaInfo, infoHash []byte, userID int64, keys *decryptedKeys, torrentCreatorPubKey []byte) (torrentModel.TorrentDTO, error) {
 	sigResult, err := s.buildSignature(mi, infoHash, keys)
 	if err != nil {
 		return torrentModel.TorrentDTO{}, err
 	}
-	return s.injectAndPersist(ctx, rootDict, mi, infoHash, userID, keys, sigResult)
+	return s.injectAndPersist(ctx, rootDict, mi, infoHash, userID, keys, torrentCreatorPubKey, sigResult)
 }
 
-func (s *Service) buildSignature(mi *metainfo.MetaInfo, infoHash []byte, keys *decryptedKeys) (*ports.SignatureResult, error) {
-	req := ports.SignatureRequest{
+func (s *Service) buildSignature(mi *metainfo.MetaInfo, infoHash []byte, keys *decryptedKeys) (*torrent_signature_service_ports.SignatureServiceResult, error) {
+	req := torrent_signature_service_ports.SignatureServiceRequest{
 		InfoHash:     infoHash,
 		AnnounceList: mi.AnnounceList,
 		PrivateKey:   keys.PrivateKey,
@@ -146,16 +157,16 @@ func (s *Service) buildSignature(mi *metainfo.MetaInfo, infoHash []byte, keys *d
 	return s.signatureBuilder.BuildPayloadAndSign(req)
 }
 
-func (s *Service) injectAndPersist(ctx context.Context, rootDict map[string]interface{}, mi *metainfo.MetaInfo, infoHash []byte, userID int64, keys *decryptedKeys, sigResult *ports.SignatureResult) (torrentModel.TorrentDTO, error) {
+func (s *Service) injectAndPersist(ctx context.Context, rootDict map[string]interface{}, mi *metainfo.MetaInfo, infoHash []byte, userID int64, keys *decryptedKeys, torrentCreatorPubKey []byte, sigResult *torrent_signature_service_ports.SignatureServiceResult) (torrentModel.TorrentDTO, error) {
 	signedBytes, err := s.injectSignature(rootDict, keys, sigResult)
 	if err != nil {
 		return torrentModel.TorrentDTO{}, err
 	}
-	return s.persistAndBuildDTO(ctx, signedBytes, mi, infoHash, userID, sigResult)
+	return s.persistAndBuildDTO(ctx, signedBytes, infoHash, userID, torrentCreatorPubKey, sigResult)
 }
 
-func (s *Service) injectSignature(rootDict map[string]interface{}, keys *decryptedKeys, sigResult *ports.SignatureResult) ([]byte, error) {
-	req := ports.InjectionRequest{
+func (s *Service) injectSignature(rootDict map[string]interface{}, keys *decryptedKeys, sigResult *torrent_signature_service_ports.SignatureServiceResult) ([]byte, error) {
+	req := torrent_signature_service_ports.InjectionServiceRequest{
 		RootDict:  rootDict,
 		PubKey:    keys.PublicKey,
 		Signature: sigResult.Signature,
@@ -164,19 +175,53 @@ func (s *Service) injectSignature(rootDict map[string]interface{}, keys *decrypt
 	return s.metaInfoSigner.InjectSignature(req)
 }
 
-func (s *Service) persistAndBuildDTO(ctx context.Context, signedBytes []byte, mi *metainfo.MetaInfo, infoHash []byte, userID int64, sigResult *ports.SignatureResult) (torrentModel.TorrentDTO, error) {
-	if err := s.persistSignature(ctx, infoHash, userID, sigResult); err != nil {
+func (s *Service) persistAndBuildDTO(ctx context.Context, signedBytes []byte, infoHash []byte, userID int64, torrentCreatorPubKey []byte, sigResult *torrent_signature_service_ports.SignatureServiceResult) (torrentModel.TorrentDTO, error) {
+	if err := s.persistSignature(ctx, infoHash, userID, torrentCreatorPubKey, sigResult); err != nil {
 		return torrentModel.TorrentDTO{}, err
 	}
-	return s.buildDTO(signedBytes, mi)
+
+	return s.buildDTO(signedBytes, infoHash)
 }
 
-func (s *Service) persistSignature(ctx context.Context, infoHash []byte, userID int64, sigResult *ports.SignatureResult) error {
-	entity := s.buildSignatureEntity(infoHash, userID, sigResult)
-	return s.signatureRepo.Create(ctx, entity)
+func (s *Service) buildDTO(signedBytes []byte, originalInfoHash []byte) (torrentModel.TorrentDTO, error) {
+
+	files, signatures := s.extractor.Extract(signedBytes)
+
+	var info metainfo.Info
+	if err := bencode.Unmarshal(signedBytes, &info); err != nil {
+		return torrentModel.TorrentDTO{}, err
+	}
+
+	return s.mapToDTO(&info, originalInfoHash, files, signatures), nil
 }
 
-func (s *Service) buildSignatureEntity(infoHash []byte, userID int64, sigResult *ports.SignatureResult) torrentSignatureModel.TorrentSignatureEntity {
+func (s *Service) mapToDTO(info *metainfo.Info, originalInfoHash []byte, files []torrentModel.FileDTO, signatures []torrentModel.SignatureDTO) torrentModel.TorrentDTO {
+	return torrentModel.TorrentDTO{
+		InfoHash:   hex.EncodeToString(originalInfoHash),
+		Name:       info.BestName(),
+		SizeBytes:  info.TotalLength(),
+		Status:     torrentModel.StatusIdle,
+		Progress:   0.0,
+		AddedAt:    time.Now(),
+		Files:      files,
+		Signatures: signatures,
+	}
+}
+func (s *Service) persistSignature(ctx context.Context, infoHash []byte, userID int64, torrentCreatorPubKey []byte, sigResult *torrent_signature_service_ports.SignatureServiceResult) error {
+	sigEntity := s.buildSignatureEntity(infoHash, userID, sigResult)
+
+	mapReq := torrent_signature_repository_ports.CreateSignatureMapRequest{
+		TorrentHash:   infoHash,
+		CreatorPubKey: torrentCreatorPubKey,
+		SignerID:      userID,
+		SignatureID:   sigEntity.ID,
+		TrustLevel:    1,
+	}
+
+	return s.signatureRepo.CreateInTransaction(ctx, sigEntity, mapReq)
+}
+
+func (s *Service) buildSignatureEntity(infoHash []byte, userID int64, sigResult *torrent_signature_service_ports.SignatureServiceResult) torrentSignatureModel.TorrentSignatureEntity {
 	return torrentSignatureModel.TorrentSignatureEntity{
 		TorrentHash:   infoHash,
 		UserID:        userID,
@@ -186,24 +231,69 @@ func (s *Service) buildSignatureEntity(infoHash []byte, userID int64, sigResult 
 	}
 }
 
-func (s *Service) buildDTO(signedBytes []byte, mi *metainfo.MetaInfo) (torrentModel.TorrentDTO, error) {
-	files, signatures := s.extractor.Extract(signedBytes)
-	info, err := mi.UnmarshalInfo()
-	if err != nil {
-		return torrentModel.TorrentDTO{}, err
+func (s *Service) GetSignedTorrentFile(ctx context.Context, req torrent_signature_service_ports.GetSignedTorrentFileRequest) ([]byte, error) {
+	// 1. Download the raw InfoBytes from MinIO
+	storageReq := storage_ports.StorageIdentityRequest{
+		InfoHash:      req.InfoHash,
+		CreatorPubKey: req.CreatorPubKey,
 	}
-	return s.mapToDTO(&info, mi, files, signatures), nil
+	infoBytes, err := s.minioRepo.DownloadBaseTorrent(ctx, storageReq)
+	if err != nil {
+		return nil, err
+	}
+
+	// 2. Get ALL signatures for this torrent from the Database
+	identityReq := torrent_signature_repository_ports.TorrentIdentityRepositoryRequest{
+		InfoHash:      req.InfoHash,
+		CreatorPubKey: req.CreatorPubKey,
+	}
+	signatures, err := s.signatureRepo.GetSignaturesForInjection(ctx, identityReq)
+	if err != nil {
+		return nil, err
+	}
+
+	// 3. Inject all signatures into the InfoBytes dictionary
+	signedInfoBytes, err := s.injectAllSignatures(infoBytes, signatures)
+	if err != nil {
+		return nil, err
+	}
+
+	// 4. Wrap the signed info dictionary into a standard .torrent file structure
+	return s.wrapInTorrentFile(signedInfoBytes)
 }
 
-func (s *Service) mapToDTO(info *metainfo.Info, mi *metainfo.MetaInfo, files []torrentModel.FileDTO, signatures []torrentModel.SignatureDTO) torrentModel.TorrentDTO {
-	return torrentModel.TorrentDTO{
-		InfoHash:   hex.EncodeToString(mi.HashInfoBytes().Bytes()),
-		Name:       info.BestName(),
-		SizeBytes:  info.TotalLength(),
-		Status:     torrentModel.StatusIdle,
-		Progress:   0.0,
-		AddedAt:    time.Now(),
-		Files:      files,
-		Signatures: signatures,
+// injectAllSignatures parses the info dict, adds all signatures, and re-marshals it
+func (s *Service) injectAllSignatures(infoBytes []byte, sigs []torrent_signature_repository_ports.SignatureInjectionDTO) ([]byte, error) {
+	var rootDict map[string]interface{}
+	if err := bencode.Unmarshal(infoBytes, &rootDict); err != nil {
+		return nil, err
 	}
+
+	// Build the signatures list
+	sigsList := make([]interface{}, 0, len(sigs))
+	for _, sig := range sigs {
+		sigsList = append(sigsList, map[string]interface{}{
+			"ed25519_pubkey": sig.SignerPublicKey,
+			"signature":      sig.SignatureBlob,
+			"timestamp":      sig.Timestamp,
+		})
+	}
+
+	// Inject (or overwrite) the signatures key
+	rootDict["signatures"] = sigsList
+
+	return bencode.Marshal(rootDict)
+}
+
+// wrapInTorrentFile creates the outer {"info": ...} dictionary required for .torrent files
+func (s *Service) wrapInTorrentFile(signedInfoBytes []byte) ([]byte, error) {
+	var signedInfoMap map[string]interface{}
+	if err := bencode.Unmarshal(signedInfoBytes, &signedInfoMap); err != nil {
+		return nil, err
+	}
+
+	finalTorrentDict := map[string]interface{}{
+		"info": signedInfoMap,
+	}
+	return bencode.Marshal(finalTorrentDict)
 }
