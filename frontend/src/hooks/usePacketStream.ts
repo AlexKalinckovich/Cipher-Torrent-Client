@@ -38,7 +38,6 @@ export const usePacketStream = (infoHash: string | null): UsePacketStreamResult 
                 return enforceBufferLimit(newList);
             });
         } else if (event.event_type === 'torrent:progress') {
-            console.log("progress_event")
             setProgress({
                 download_speed_bps: event.progress.download_speed_bps,
                 upload_speed_bps: event.progress.upload_speed_bps,

@@ -77,7 +77,8 @@ export const Dashboard: React.FC = () => {
                         t.info_hash === progress.info_hash &&
                         t.creator_public_key === progress.creator_public_key
                     ) {
-                        return { ...t, progress: progress.progress };
+                        const fixedProgress = progress.progress * 100
+                        return { ...t, progress: fixedProgress };
                     }
                     return t;
                 })
