@@ -15,15 +15,16 @@ const (
 )
 
 type TorrentDTO struct {
-	InfoHash    string         `json:"info_hash"`
-	Name        string         `json:"name"`
-	SizeBytes   int64          `json:"size_bytes"`
-	StoragePath string         `json:"storage_path"`
-	Status      TorrentStatus  `json:"status"`
-	Progress    float32        `json:"progress"`
-	AddedAt     time.Time      `json:"added_at"`
-	Files       []FileDTO      `json:"files"`
-	Signatures  []SignatureDTO `json:"signatures"`
+	InfoHash         string         `json:"info_hash"`
+	CreatorPublicKey string         `json:"creator_public_key"`
+	Name             string         `json:"name"`
+	SizeBytes        int64          `json:"size_bytes"`
+	StoragePath      string         `json:"storage_path"`
+	Status           TorrentStatus  `json:"status"`
+	Progress         float32        `json:"progress"`
+	AddedAt          time.Time      `json:"added_at"`
+	Files            []FileDTO      `json:"files"`
+	Signatures       []SignatureDTO `json:"signatures"`
 }
 
 type FileDTO struct {

@@ -31,9 +31,9 @@ type UpdateProgressServiceRequest struct {
 }
 
 type TorrentEngine interface {
-	StartDownload(infoBytes []byte) (string, error)
+	StartDownload(infoBytes []byte, key []byte) (string, error)
 	PauseTorrent(infoHash []byte) error
-	ResumeTorrent(infoBytes []byte) error
+	ResumeTorrent(infoBytes []byte, key []byte) error
 }
 
 type TorrentValidatorPort interface {

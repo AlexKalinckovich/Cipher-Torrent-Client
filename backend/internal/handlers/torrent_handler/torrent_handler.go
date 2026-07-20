@@ -62,9 +62,9 @@ func (h *TorrentHandler) RegisterRoutes(rg *gin.RouterGroup) {
 	torrents.POST("/add", h.Add)
 	torrents.GET("/", h.GetUserTorrents)
 	torrents.GET("/:"+infoHashParam+"/:"+creatorPubKeyParam, h.GetByInfoHash)
-	torrents.POST("/:"+infoHashParam+"/:"+creatorPubKeyParam+"/pause", h.PauseTorrent)
-	torrents.POST("/:"+infoHashParam+"/:"+creatorPubKeyParam+"/resume", h.ResumeTorrent)
-	torrents.POST("/:"+infoHashParam+"/:"+creatorPubKeyParam+"/progress", h.UpdateProgress)
+	torrents.POST("/pause", h.PauseTorrent)
+	torrents.POST("/resume", h.ResumeTorrent)
+	torrents.POST("/progress", h.UpdateProgress)
 	torrents.DELETE("/", h.DeleteTorrent)
 }
 

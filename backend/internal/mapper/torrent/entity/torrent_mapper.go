@@ -1,6 +1,7 @@
 package entity
 
 import (
+	"encoding/base64"
 	"encoding/hex"
 
 	generated "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/torrent/generated"
@@ -25,14 +26,15 @@ func ToDTO(
 	signatures []torrentModel.SignatureDTO,
 ) torrentModel.TorrentDTO {
 	return torrentModel.TorrentDTO{
-		InfoHash:    hex.EncodeToString(row.InfoHash),
-		Name:        row.Name,
-		SizeBytes:   row.SizeBytes,
-		StoragePath: "",
-		Status:      torrentModel.TorrentStatus(row.Status),
-		Progress:    float32(row.Progress),
-		AddedAt:     row.AddedAt,
-		Files:       files,
-		Signatures:  signatures,
+		InfoHash:         hex.EncodeToString(row.InfoHash),
+		CreatorPublicKey: base64.RawURLEncoding.EncodeToString(row.CreatorPublicKey),
+		Name:             row.Name,
+		SizeBytes:        row.SizeBytes,
+		StoragePath:      "",
+		Status:           torrentModel.TorrentStatus(row.Status),
+		Progress:         float32(row.Progress),
+		AddedAt:          row.AddedAt,
+		Files:            files,
+		Signatures:       signatures,
 	}
 }

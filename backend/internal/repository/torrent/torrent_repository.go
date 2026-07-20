@@ -88,14 +88,14 @@ func (r *TorrentRepository) GetUserTorrents(ctx context.Context, userID int64) (
 }
 
 func (r *TorrentRepository) aggregateRowsToDTOs(rows []generated.GetUserTorrentsRow) []torrentModel.TorrentDTO {
-	// We use a composite key to group torrents (since info_hash + creator_public_key is unique)
+
 	type torrentKey struct {
 		infoHash      string
 		creatorPubKey string
 	}
 
 	groupedTorrents := make(map[torrentKey]*torrentModel.TorrentDTO)
-	var orderedKeys []torrentKey // To maintain the original order from the DB
+	var orderedKeys []torrentKey
 
 	for _, row := range rows {
 		key := torrentKey{
@@ -105,12 +105,9 @@ func (r *TorrentRepository) aggregateRowsToDTOs(rows []generated.GetUserTorrents
 
 		dto, exists := groupedTorrents[key]
 		if !exists {
-			// First time seeing this torrent. Extract files from InfoBytes.
-			// We ignore the signatures returned by the extractor because we are
-			// now getting them directly from the database JOIN.
+
 			files, _ := r.extractor.Extract(row.InfoBytes)
 
-			// Initialize the DTO with an empty signatures slice
 			newDTO := torrentMapper.ToDTO(row, files, []torrentModel.SignatureDTO{})
 			dto = &newDTO
 
@@ -118,13 +115,11 @@ func (r *TorrentRepository) aggregateRowsToDTOs(rows []generated.GetUserTorrents
 			orderedKeys = append(orderedKeys, key)
 		}
 
-		// If this row contains a valid signature (from the LEFT JOIN), append it
 		if sig := r.mapRowToSignatureDTO(row); sig != nil {
 			dto.Signatures = append(dto.Signatures, *sig)
 		}
 	}
 
-	// Reconstruct the slice in the original order
 	result := make([]torrentModel.TorrentDTO, 0, len(orderedKeys))
 	for _, key := range orderedKeys {
 		result = append(result, *groupedTorrents[key])

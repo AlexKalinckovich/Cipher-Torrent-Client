@@ -21,7 +21,8 @@ const FileRowComponent: React.FC<FileRowProps> = ({ file }) => {
 };
 
 const areFileRowEqual = (prevProps: FileRowProps, nextProps: FileRowProps): boolean => {
-    return prevProps.file.path === nextProps.file.path;
+    return prevProps.file.path === nextProps.file.path &&
+        prevProps.file.size_bytes === nextProps.file.size_bytes;
 };
 
 export const FileRow = memo(FileRowComponent, areFileRowEqual);

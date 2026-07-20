@@ -1,37 +1,20 @@
-import React, { useCallback, memo } from 'react';
+import React, { memo } from 'react';
 import { EditOutlined, LoadingOutlined } from '@ant-design/icons';
-import { message } from 'antd';
-import { useSignTorrent } from '@/hooks/useTorrents.ts';
-import type { SignatureCreateResponse } from '@/types/model/models.ts';
 import styles from './SignTorrentButton.module.css';
 
 interface SignTorrentButtonProps {
-    infoHash: string;
-    onSignSuccess: (res: SignatureCreateResponse) => void;
+    onSignClick: () => void;
+    isPending?: boolean;
 }
 
 interface OptionalSignButtonProps extends SignTorrentButtonProps {
     isSignedByMe: boolean;
 }
 
-const SignTorrentButtonComponent: React.FC<SignTorrentButtonProps> = ({ infoHash, onSignSuccess }) => {
-    const { mutate: signTorrent, isPending } = useSignTorrent();
-
-    const handleSign = useCallback((): void => {
-        signTorrent(infoHash, {
-            onSuccess: (response: SignatureCreateResponse): void => {
-                void message.success('TORRENT CRYPTOGRAPHICALLY SIGNED');
-                onSignSuccess(response);
-            },
-            onError: (error: Error): void => {
-                void message.error(`SIGNATURE FAILED: ${error.message}`);
-            }
-        });
-    }, [infoHash, signTorrent, onSignSuccess]);
-
+const SignTorrentButtonComponent: React.FC<SignTorrentButtonProps> = ({ onSignClick, isPending }) => {
     return (
         <div className={styles.actionContainer}>
-            <button type="button" className={styles.signBtn} onClick={handleSign} disabled={isPending}>
+            <button type="button" className={styles.signBtn} onClick={onSignClick} disabled={isPending}>
                 {isPending ? <LoadingOutlined /> : <EditOutlined />}
                 {isPending ? 'GENERATING SIGNATURE...' : 'SIGN THIS TORRENT'}
             </button>
@@ -41,9 +24,9 @@ const SignTorrentButtonComponent: React.FC<SignTorrentButtonProps> = ({ infoHash
 
 export const SignTorrentButton = memo(SignTorrentButtonComponent);
 
-export const OptionalSignButton: React.FC<OptionalSignButtonProps> = ({ isSignedByMe, infoHash, onSignSuccess }) => {
+export const OptionalSignButton: React.FC<OptionalSignButtonProps> = ({ isSignedByMe, onSignClick, isPending }) => {
     if (isSignedByMe) {
         return null;
     }
-    return <SignTorrentButton infoHash={infoHash} onSignSuccess={onSignSuccess} />;
+    return <SignTorrentButton onSignClick={onSignClick} isPending={isPending} />;
 };

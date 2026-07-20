@@ -1,7 +1,7 @@
 import React, { useCallback } from 'react';
 import { Table } from 'antd';
 import type { HTMLAttributes, MouseEvent } from 'react';
-import type { Torrent } from '@/types/model/models.ts';
+import type { TorrentDTO } from '@/types/model/models.ts';
 import type { TorrentTableProps } from '@/features/torrents/types/dashboardTypes';
 import styles from './TorrentTable.module.css';
 
@@ -20,17 +20,14 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({ data, loading, colum
         pageSize: 10
     };
 
-    const handleRow = useCallback((record: Torrent): HTMLAttributes<HTMLElement> => {
+    const handleRow = useCallback((record: TorrentDTO): HTMLAttributes<HTMLElement> => {
         const handleClick = (e: MouseEvent<HTMLElement>): void => {
             const target: HTMLElement = e.target as HTMLElement;
-
             if (checkIgnoredClick(target)) {
                 return;
             }
-
             onRowClick(record);
         };
-
         return {
             onClick: handleClick
         };
@@ -38,7 +35,7 @@ export const TorrentTable: React.FC<TorrentTableProps> = ({ data, loading, colum
 
     return (
         <div className={styles.tableWrapper}>
-            <Table<Torrent>
+            <Table<TorrentDTO>
                 dataSource={data}
                 columns={columns}
                 rowKey="info_hash"

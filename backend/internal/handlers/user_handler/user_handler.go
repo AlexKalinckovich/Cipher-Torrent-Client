@@ -12,6 +12,10 @@ import (
 	"strconv"
 )
 
+const (
+	userIDKey = "user_id"
+)
+
 type UserHandler struct {
 	service serviceUser.UserServicePort
 }
@@ -25,6 +29,7 @@ func (h *UserHandler) RegisterRoutes(rg *gin.RouterGroup) {
 	{
 		users.POST("", h.Create)
 		users.GET("/:id", h.Get)
+		users.GET("/me", h.GetCurrentUser)
 		users.GET("/email/:email", h.GetByEmail)
 		users.GET("/nickname/:nickname", h.GetByNickname)
 		users.GET("/password/:email", h.GetPasswordHash)
@@ -61,6 +66,17 @@ func (h *UserHandler) handleCreateResult(c *gin.Context, res userModel.UserFull,
 func (h *UserHandler) Get(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	h.handleGetID(c, id, err)
+}
+
+func (h *UserHandler) GetCurrentUser(c *gin.Context) {
+	userId := h.extractUserID(c)
+	res, err := h.service.Get(c.Request.Context(), userId)
+	h.handleGetResult(c, res, err)
+}
+
+func (h *UserHandler) extractUserID(c *gin.Context) int64 {
+	val, _ := c.Get(userIDKey)
+	return val.(int64)
 }
 
 func (h *UserHandler) handleGetID(c *gin.Context, id int64, err error) {

@@ -24,7 +24,6 @@ const FilterBarComponent: React.FC<FilterBarProps> = ({
                                                           baseClassName,
                                                           activeClassName
                                                       }) => {
-
     const handleFilterAll = useCallback((): void => {
         onFilterChange(null);
     }, [onFilterChange]);
@@ -41,8 +40,8 @@ const FilterBarComponent: React.FC<FilterBarProps> = ({
         onFilterChange('paused');
     }, [onFilterChange]);
 
-    const handleFilterError = useCallback((): void => {
-        onFilterChange('error');
+    const handleFilterIdle = useCallback((): void => {
+        onFilterChange('idle');
     }, [onFilterChange]);
 
     const handleSearchInput = useCallback((e: React.ChangeEvent<HTMLInputElement>): void => {
@@ -56,7 +55,7 @@ const FilterBarComponent: React.FC<FilterBarProps> = ({
                 <FilterButton label="Downloading" isActive={currentFilter === 'downloading'} onClick={handleFilterDownloading} baseClassName={baseClassName} activeClassName={activeClassName} />
                 <FilterButton label="Seeding" isActive={currentFilter === 'seeding'} onClick={handleFilterSeeding} baseClassName={baseClassName} activeClassName={activeClassName} />
                 <FilterButton label="Paused" isActive={currentFilter === 'paused'} onClick={handleFilterPaused} baseClassName={baseClassName} activeClassName={activeClassName} />
-                <FilterButton label="Error" isActive={currentFilter === 'error'} onClick={handleFilterError} baseClassName={baseClassName} activeClassName={activeClassName} />
+                <FilterButton label="Idle" isActive={currentFilter === 'idle'} onClick={handleFilterIdle} baseClassName={baseClassName} activeClassName={activeClassName} />
             </div>
             <Input
                 placeholder="Search torrents..."

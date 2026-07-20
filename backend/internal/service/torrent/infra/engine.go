@@ -2,6 +2,7 @@ package infra
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/custom_errors/torrent_errors"
@@ -52,12 +53,97 @@ func NewAnacrolixEngine(dataDir string, localPubKey []byte, publisher eventPorts
 	return engine.initClient(dataDir)
 }
 
-func (e *AnacrolixEngine) StartDownload(infoBytes []byte) (string, error) {
+func (e *AnacrolixEngine) StartDownload(infoBytes []byte, pubKey []byte) (string, error) {
+	log.Println("Start called")
+
 	t, err := e.addTorrent(infoBytes)
 	if err != nil {
 		return "", err
 	}
+
+	go e.monitorProgressEventDriven(t, pubKey)
+
 	return e.activateTorrent(t)
+}
+
+func (e *AnacrolixEngine) monitorProgressEventDriven(t *torrent.Torrent, creatorPubKey []byte) {
+	ih := t.InfoHash().HexString()
+	pubKeyBase64 := base64.RawURLEncoding.EncodeToString(creatorPubKey)
+
+	channel := fmt.Sprintf("progress_%s", ih)
+
+	sub := t.SubscribePieceStateChanges()
+	defer sub.Close()
+
+	var lastBytesRead, lastBytesWritten int64
+	var lastEventTime time.Time
+	isFirst := true
+
+	throttle := time.NewTicker(2 * time.Second)
+	defer throttle.Stop()
+
+	var pendingEmit bool
+
+	for {
+		select {
+		case _, ok := <-sub.Values:
+			if !ok {
+				return
+			}
+
+			pendingEmit = true
+
+		case <-throttle.C:
+			if !pendingEmit {
+				continue
+			}
+			pendingEmit = false
+
+			completedBytes := t.BytesCompleted()
+			length := t.Length()
+
+			var progress float32
+			if length > 0 {
+				progress = float32(completedBytes) / float32(length)
+			}
+
+			var downloadSpeed, uploadSpeed int64
+			now := time.Now()
+
+			if !isFirst {
+				elapsed := now.Sub(lastEventTime).Seconds()
+				if elapsed > 0 {
+					stats := t.Stats()
+					currentRead := stats.AllConnStats.BytesReadUsefulData.Int64()
+					currentWrite := stats.AllConnStats.BytesWrittenData.Int64()
+
+					downloadSpeed = int64(float64(currentRead-lastBytesRead) / elapsed)
+					uploadSpeed = int64(float64(currentWrite-lastBytesWritten) / elapsed)
+				}
+			} else {
+				isFirst = false
+			}
+
+			stats := t.Stats()
+			lastBytesRead = stats.AllConnStats.BytesReadUsefulData.Int64()
+			lastBytesWritten = stats.AllConnStats.BytesWrittenData.Int64()
+			lastEventTime = now
+
+			evt := packet.Event{
+				Type: packet.EventTypeProgress,
+				Progress: &packet.ProgressLog{
+					InfoHash:         ih,
+					CreatorPublicKey: pubKeyBase64,
+					Progress:         progress,
+					DownloadSpeedBps: downloadSpeed,
+					UploadSpeedBps:   uploadSpeed,
+				},
+			}
+
+			e.enqueueEvent(channel, evt)
+			e.enqueueEvent("global_progress", evt)
+		}
+	}
 }
 
 func (e *AnacrolixEngine) PauseTorrent(infoHash []byte) error {
@@ -70,21 +156,27 @@ func (e *AnacrolixEngine) PauseTorrent(infoHash []byte) error {
 	return nil
 }
 
-func (e *AnacrolixEngine) ResumeTorrent(infoBytes []byte) error {
+func (e *AnacrolixEngine) ResumeTorrent(infoBytes []byte, key []byte) error {
+	log.Println("Resume called")
 	t, err := e.addTorrent(infoBytes)
 	if err != nil {
 		return err
 	}
+	go e.monitorProgressEventDriven(t, key)
 	_, err = e.activateTorrent(t)
 	return err
 }
 
 func (e *AnacrolixEngine) addTorrent(infoBytes []byte) (*torrent.Torrent, error) {
+	log.Printf("[ENGINE] 🚨 addTorrent TRIGGERED! Stack trace:")
+
 	mi := &metainfo.MetaInfo{InfoBytes: infoBytes}
 	return e.client.AddTorrent(mi)
 }
 
 func (e *AnacrolixEngine) activateTorrent(t *torrent.Torrent) (string, error) {
+	log.Printf("[ENGINE] 🚨 activateTorrent (DownloadAll) TRIGGERED! Stack trace:")
+
 	<-t.GotInfo()
 	t.DownloadAll()
 	return t.InfoHash().HexString(), nil
@@ -129,18 +221,30 @@ func (e *AnacrolixEngine) dispatchEvents() {
 func (e *AnacrolixEngine) publishToRedis(evt asyncEvent) {
 	data, err := json.Marshal(evt.Payload)
 	if err != nil {
-		log.Printf("Marshal error: %v", err)
+		log.Printf("[ENGINE] Marshal error: %v", err)
 		return
 	}
-	_ = e.publisher.Publish(context.Background(), evt.Channel, data)
+
+	//log.Printf("[ENGINE] Publishing to Redis | Channel: %s | Size: %d bytes", evt.Channel, len(data))
+
+	err = e.publisher.Publish(context.Background(), evt.Channel, data)
+	if err != nil {
+		log.Printf("[ENGINE] ❌ Redis Publish FAILED: %v", err)
+	} else {
+		//log.Printf("[ENGINE] ✅ Redis Publish SUCCESS")
+	}
 }
 
 func (e *AnacrolixEngine) enqueueEvent(channel string, payload any) {
 	if channel == "" {
 		return
 	}
+
 	select {
-	case e.eventBus <- asyncEvent{Channel: channel, Payload: payload}:
+	case e.eventBus <- asyncEvent{
+		Channel: channel,
+		Payload: payload,
+	}:
 	default:
 	}
 }
@@ -176,7 +280,7 @@ func (e *AnacrolixEngine) writeExtendedAndLog(pc *torrent.PeerConn, payload []by
 
 func (e *AnacrolixEngine) enqueueOutboundHandshake(pc *torrent.PeerConn, payload []byte) {
 	logEvent := e.buildHandshakeLog(pc, payload)
-	e.enqueueEvent(e.getChannel(pc), packet.Event{Type: packet.EventTypePacket, Packet: logEvent})
+	e.enqueueEvent(e.getChannel(pc), packet.Event{Type: packet.EventTypePacket, Packet: &logEvent})
 }
 
 func (e *AnacrolixEngine) buildHandshakeLog(pc *torrent.PeerConn, payload []byte) packet.Log {
@@ -224,7 +328,7 @@ func (e *AnacrolixEngine) onSentRequest(evt torrent.PeerRequestEvent) {
 	e.setRequestMetadata(&logEvent, evt.Request)
 	e.enqueueEvent(e.getPeerChannel(evt.Peer), packet.Event{
 		Type:   packet.EventTypePacket,
-		Packet: logEvent,
+		Packet: &logEvent,
 	})
 }
 

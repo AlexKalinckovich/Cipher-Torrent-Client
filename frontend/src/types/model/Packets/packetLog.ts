@@ -1,6 +1,13 @@
-import type { ReputationReceipt } from '../Reputation/reputationReceipt';
+export type PacketDirection = 'inbound' | 'outbound';
 
-export type PacketDirection = 'incoming' | 'outgoing';
+export interface ReputationReceipt {
+    info_hash: string;
+    from_pub_key: string;
+    to_pub_key: string;
+    piece_index: number;
+    byte_count: number;
+    timestamp: number;
+}
 
 export interface PacketLog {
     id: number;
@@ -8,9 +15,10 @@ export interface PacketLog {
     direction: PacketDirection;
     message_type: string;
     peer_ip?: string;
-    raw_payload_base64: string;
+    piece_index?: number;
+    chunk_offset?: number;
+    chunk_length?: number;
     parsed_info?: string;
     reputation_payload?: ReputationReceipt;
-    has_reputation_extension : boolean;
     size_bytes?: number;
 }

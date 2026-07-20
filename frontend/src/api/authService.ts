@@ -2,7 +2,8 @@ import { api } from './axiosClient';
 import type {
     AuthLoginRequest,
     AuthRegisterRequest,
-    AuthResponse
+    AuthResponse,
+    UserFull
 } from '../types/model/models.ts';
 import type { AxiosResponse } from 'axios';
 
@@ -45,6 +46,11 @@ export class AuthService {
 
     private handleAuthError(error: Error): never {
         throw error;
+    }
+
+    public async getProfile(): Promise<UserFull> {
+        const response: AxiosResponse<UserFull> = await api.get('/users/me');
+        return response.data;
     }
 }
 

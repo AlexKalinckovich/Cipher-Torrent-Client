@@ -1,27 +1,13 @@
 import React, { memo } from 'react';
-import type { TorrentSignature } from '@/types/model/models.ts';
+import type { SignatureDTO } from '@/types/model/models.ts';
 import styles from './TorrentSignaturesList.module.css';
 
 interface SignatureRowProps {
-    signature: TorrentSignature;
+    signature: SignatureDTO;
 }
 
-const getRowClass = (isValid: boolean): string => {
-    if (isValid) {
-        return styles.row;
-    }
-    return `${styles.row} ${styles.rowInvalid}`;
-};
-
-const getBadgeClass = (isValid: boolean): string => {
-    if (isValid) {
-        return `${styles.badge} ${styles.badgeValid}`;
-    }
-    return `${styles.badge} ${styles.badgeInvalid}`;
-};
-
-const formatDate = (isoString: string): string => {
-    return new Date(isoString).toLocaleString();
+const formatDate = (timestamp: number): string => {
+    return new Date(timestamp * 1000).toLocaleString();
 };
 
 const formatShortKey = (key: string): string => {
@@ -33,16 +19,16 @@ const formatShortKey = (key: string): string => {
 
 const SignatureRowComponent: React.FC<SignatureRowProps> = ({ signature }) => {
     return (
-        <div className={getRowClass(signature.is_valid)}>
+        <div className={styles.row}>
             <div className={styles.keyBlock}>
                 <span className={styles.keyLabel}>SIGNER PUBLIC KEY</span>
                 <span className={styles.keyValue}>{formatShortKey(signature.signer_public_key)}</span>
             </div>
             <div className={styles.dateBlock}>
-                {formatDate(signature.signed_at)}
+                {formatDate(signature.timestamp)}
             </div>
-            <div className={getBadgeClass(signature.is_valid)}>
-                {signature.is_valid ? 'VALID' : 'INVALID'}
+            <div className={styles.badge}>
+                VALID
             </div>
         </div>
     );

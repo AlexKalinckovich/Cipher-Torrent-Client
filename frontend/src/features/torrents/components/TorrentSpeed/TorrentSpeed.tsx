@@ -7,7 +7,7 @@ interface TorrentSpeedProps {
     tx?: number;
 }
 
-export const TorrentSpeed: React.FC<TorrentSpeedProps> = ({ rx, tx } : TorrentSpeedProps) => {
+export const TorrentSpeed: React.FC<TorrentSpeedProps> = ({ rx, tx }: TorrentSpeedProps) => {
     return (
         <div className={styles.speedContainer}>
             <div className={styles.speedRow}>

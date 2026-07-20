@@ -1,7 +1,6 @@
 import React, { memo } from 'react';
 import type { Peer } from '@/types/model/models.ts';
 import { PeerRow } from './PeerRow.tsx';
-import { EmptyPeersList } from './EmptyPeersList.tsx';
 import styles from './TorrentPeersList.module.css';
 
 interface TorrentPeersListProps {
@@ -10,7 +9,7 @@ interface TorrentPeersListProps {
 
 const TorrentPeersListComponent: React.FC<TorrentPeersListProps> = ({ peers }) => {
     if (peers.length === 0) {
-        return <EmptyPeersList />;
+        return <div className={styles.emptyState}>NO ACTIVE PEERS</div>;
     }
 
     return (

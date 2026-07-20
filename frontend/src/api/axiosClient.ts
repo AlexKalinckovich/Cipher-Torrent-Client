@@ -6,13 +6,18 @@ import axios, {
 } from 'axios';
 import { TokenRepository } from './tokenRepository';
 import type { AuthResponse, AuthRefreshRequest } from '../types/model/models.ts';
-import { MockServer } from '@/mocks/mock-servert.ts';
 
 export class HttpClient {
     public static readonly responsibility = "Configured Axios instance with automated authentication headers and token refresh logic";
 
     private readonly instance: AxiosInstance;
     private readonly tokens: TokenRepository;
+
+    private readonly publicEndpoints: string[] = [
+        '/auth/login',
+        '/auth/register',
+        '/auth/refresh'
+    ];
 
     constructor() {
         this.tokens = new TokenRepository();
@@ -31,7 +36,17 @@ export class HttpClient {
         );
     }
 
+    // 2. Helper to check if the request is for a public endpoint
+    private isPublicEndpoint(url: string | undefined): boolean {
+        return url ? this.publicEndpoints.some((endpoint: string) => url.includes(endpoint)) : false;
+    }
+
     private injectToken(config: InternalAxiosRequestConfig): InternalAxiosRequestConfig {
+        if (this.isPublicEndpoint(config.url)) {
+            console.log("public confing")
+            return config;
+        }
+
         const token: string | null = this.tokens.getAccessToken();
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
@@ -48,6 +63,7 @@ export class HttpClient {
 
     private async tryTokenRefresh(originalConfig: InternalAxiosRequestConfig): Promise<AxiosResponse | unknown> {
         try {
+            console.log("Trying token refresh")
             return await this.executeRefreshSequence(originalConfig);
         } catch (refreshError) {
             this.tokens.clear();
@@ -59,10 +75,12 @@ export class HttpClient {
         const refreshRequest: AuthRefreshRequest = {
             refresh_token: this.tokens.getRefreshToken() || ""
         };
+
         const response = await axios.post<AuthResponse>(
             `${this.instance.defaults.baseURL}/auth/refresh`,
             refreshRequest
         );
+
         this.updateStoredTokens(response.data);
         return this.instance(config);
     }
@@ -79,8 +97,7 @@ export class HttpClient {
 
 export const api: AxiosInstance = new HttpClient().getInstance();
 
-const isDev: boolean = import.meta.env ? import.meta.env.DEV : true;
-
+const isDev: boolean = import.meta.env ? import.meta.env.DEV : false;
 if (isDev) {
-    new MockServer(api);
+    //new MockServer(api);
 }

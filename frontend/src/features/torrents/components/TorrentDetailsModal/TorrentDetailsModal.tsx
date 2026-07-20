@@ -1,21 +1,20 @@
 import React, { useState, useCallback, memo } from 'react';
 import { CloseOutlined } from '@ant-design/icons';
-import type { Torrent } from '@/types/model/models.ts';
-import { formatBytes } from '@/utils/DashboardScreenUtils/bytesFormatter.ts';
+import type { TorrentDTO } from '@/types/model/models.ts';
 import { FilesTab } from './Tabs/FilesTab';
 import { PeersTab } from './Tabs/PeersTab';
 import { SignaturesTab } from './Tabs/SignaturesTab';
 import styles from './TorrentDetailsModal.module.css';
 
 export interface TorrentDetailsModalProps {
-    torrent: Torrent | null;
+    torrent: TorrentDTO | null;
     onClose: () => void;
 }
 
 type TabKey = 'files' | 'peers' | 'signatures';
 
 interface TabProps {
-    torrent: Torrent;
+    torrent: TorrentDTO;
 }
 
 const TAB_COMPONENTS: Record<TabKey, React.FC<TabProps>> = {
@@ -33,13 +32,6 @@ const getTabClass = (current: TabKey, active: TabKey): string => {
         return `${styles.tabBtn} ${styles.tabBtnActive}`;
     }
     return styles.tabBtn;
-};
-
-const getPieceSizeText = (bytes: number | undefined): string => {
-    if (!bytes) {
-        return 'PIECE SIZE: UNKNOWN';
-    }
-    return `PIECE SIZE: ${formatBytes(bytes)}`;
 };
 
 const TorrentDetailsModalComponent: React.FC<TorrentDetailsModalProps> = ({ torrent, onClose }) => {
@@ -61,7 +53,6 @@ const TorrentDetailsModalComponent: React.FC<TorrentDetailsModalProps> = ({ torr
                 <div className={styles.header}>
                     <div className={styles.titleBlock}>
                         <h2 className={styles.title}>{torrent.name}</h2>
-                        <span className={styles.pieceInfo}>{getPieceSizeText(torrent.piece_length)}</span>
                     </div>
                     <button type="button" className={styles.closeBtn} onClick={onClose}>
                         <CloseOutlined />

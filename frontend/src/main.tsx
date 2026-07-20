@@ -4,9 +4,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ConfigProvider, theme } from 'antd';
-import { api } from './api/axiosClient';
-import { MockServer } from './mocks/mock-servert.ts';
-
+import {AuthProvider} from '@/AuthContext.tsx'
 const queryClient = new QueryClient();
 
 
@@ -35,7 +33,6 @@ const darkTheme = {
 
 
 const initializeEnvironment = (): void => {
-    new MockServer(api);
     renderApp();
 };
 
@@ -44,7 +41,9 @@ const renderApp = (): void => {
         <React.StrictMode>
             <QueryClientProvider client={queryClient}>
                 <ConfigProvider theme={darkTheme}>
-                    <App />
+                    <AuthProvider>
+                        <App />
+                    </AuthProvider>
                 </ConfigProvider>
             </QueryClientProvider>
         </React.StrictMode>

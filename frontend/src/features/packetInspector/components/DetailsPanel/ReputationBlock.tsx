@@ -10,7 +10,10 @@ interface OptionalReputationBlockProps {
     payload?: ReputationReceipt;
 }
 
-const formatShortId = (id: string): string => {
+const formatShortId = (id?: string | null): string => {
+    if (!id || id.length < 16) {
+        return id || 'N/A';
+    }
     return `${id.substring(0, 8)}...${id.substring(id.length - 8)}`;
 };
 
