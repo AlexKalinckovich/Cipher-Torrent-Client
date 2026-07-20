@@ -5,13 +5,13 @@ import { formatTime } from '@/features/packetInspector/utils/packetFormatUtils';
 import styles from './PacketRow.module.css';
 
 const DIRECTION_ICONS: Record<PacketDirection, string> = {
-    incoming: '[<-]',
-    outgoing: '[->]'
+    inbound: '[<-]',
+    outbound: '[->]'
 };
 
 const DIRECTION_CLASSES: Record<PacketDirection, string> = {
-    incoming: styles.incoming,
-    outgoing: styles.outgoing
+    inbound: styles.incoming,
+    outbound: styles.outgoing
 };
 
 const getDirectionIcon = (direction: PacketDirection): string => {
@@ -34,6 +34,8 @@ const PacketRowComponent: React.FC<PacketRowProps> = ({ packet, isSelected, onSe
         onSelect(packet);
     }, [packet, onSelect]);
 
+    const pieceInfo = packet.piece_index !== undefined ? ` | Piece: ${packet.piece_index}` : '';
+
     return (
         <div className={getRowClass(isSelected)} onClick={handleClick}>
             <span className={styles.timestamp}>{formatTime(packet.timestamp)}</span>
@@ -41,7 +43,7 @@ const PacketRowComponent: React.FC<PacketRowProps> = ({ packet, isSelected, onSe
                 {getDirectionIcon(packet.direction)}
             </span>
             <span className={styles.ip}>{packet.peer_ip ?? 'SYSTEM'}</span>
-            <span className={styles.type}>{packet.message_type}</span>
+            <span className={styles.type}>{packet.message_type}{pieceInfo}</span>
             <span className={styles.size}>{packet.size_bytes ?? 0} B</span>
         </div>
     );

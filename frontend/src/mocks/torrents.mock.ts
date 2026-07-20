@@ -1,5 +1,5 @@
-import type {Torrent} from '../types/model/models.ts';
-export const mockTorrents: Torrent[] = [
+import type {TorrentEntity} from '../types/model/models.ts';
+export const mockTorrents: TorrentEntity[] = [
     {
         id: 1,
         info_hash: "A1B2C3D4E5F6G7H8I9J0",

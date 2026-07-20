@@ -20,20 +20,14 @@
  * https://openapi-generator.tech
  * Do not edit the class manually.
  */
-import type {PeerFlags} from './peerFlags';
 
 
-export interface Peer { 
+export interface Peer {
     peer_id: string;
     ip: string;
     port: number;
     client_name: string;
-    supports_ut_reputation: boolean;
-    reputation_score?: number;
-    last_seen?: string;
-    connected_since?: string;
-    download_speed_bps?: number;
-    upload_speed_bps?: number;
-    flags?: PeerFlags;
+    download_speed_bps: number;
+    upload_speed_bps: number;
 }
 

@@ -1,4 +1,4 @@
-import type { Torrent } from '@/types/model/models.ts';
+import type { TorrentDTO } from '@/types/model/models.ts';
 import type { ColumnsType } from 'antd/es/table';
 import React from 'react';
 
@@ -7,7 +7,6 @@ export interface DashboardStats {
     downloading: number;
     seeding: number;
     paused: number;
-    error: number;
     totalSize: number;
 }
 
@@ -43,10 +42,10 @@ export interface FilterBarProps {
 }
 
 export interface TorrentTableProps {
-    data: Torrent[];
+    data: TorrentDTO[];
     loading: boolean;
-    columns: ColumnsType<Torrent>;
-    onRowClick: (torrent: Torrent) => void;
+    columns: ColumnsType<TorrentDTO>;
+    onRowClick: (torrent: TorrentDTO) => void;
 }
 
 export interface ProgressBarProps {

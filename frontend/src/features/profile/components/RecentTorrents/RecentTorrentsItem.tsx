@@ -1,12 +1,12 @@
 import React, { useCallback, memo } from 'react';
 import { DeleteOutlined } from '@ant-design/icons';
 import { formatBytes } from '@/features/profile/utils/profileUtils.ts';
-import type { Torrent } from '@/types/model/models.ts';
+import type { TorrentDTO } from '@/types/model/models.ts';
 import styles from './RecentTorrents.module.css';
 
 interface RecentTorrentItemProps {
-    torrent: Torrent;
-    onSelect: (torrent: Torrent) => void;
+    torrent: TorrentDTO;
+    onSelect: (torrent: TorrentDTO) => void;
     onRemove: (e: React.MouseEvent, name: string) => void;
 }
 

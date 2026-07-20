@@ -23,7 +23,11 @@ func NewMessageMapper(localPubKey []byte) *MessageMapper {
 }
 
 func (m *MessageMapper) ToPacketEvent(pc *torrent.PeerConn, msg *peer_protocol.Message, key []byte) packet.Event {
-	return packet.Event{Type: packet.EventTypePacket, Packet: m.buildLog(pc, msg, key)}
+	log := m.buildLog(pc, msg, key)
+	return packet.Event{
+		Type:   packet.EventTypePacket,
+		Packet: &log,
+	}
 }
 
 func (m *MessageMapper) buildLog(pc *torrent.PeerConn, msg *peer_protocol.Message, key []byte) packet.Log {

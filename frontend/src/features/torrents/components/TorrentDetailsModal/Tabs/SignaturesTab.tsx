@@ -1,12 +1,13 @@
 import React, { useCallback, useState } from 'react';
-import type { Torrent, TorrentSignature, SignatureCreateResponse } from '@/types/model/models.ts';
-import { useTorrentSignaturesMock } from '@/hooks/useTorrentSignatureMock';
-import { TorrentSignaturesList } from '@/features/torrents/components/TorrentDetailsModal/Tabs/TorrentSignaturesList/TorrentSignaturesList';
+import type { TorrentDTO, TorrentIdentity } from '@/types/model/models.ts';
+import { TorrentSignaturesList } from './TorrentSignaturesList/TorrentSignaturesList';
 import { OptionalSignButton } from './TorrentSignaturesList/SignTorrentButton';
+import { useSignTorrent } from '@/hooks/useTorrents.ts';
+import { message } from 'antd';
 import styles from './Tabs.module.css';
 
 interface TabProps {
-    torrent: Torrent;
+    torrent: TorrentDTO;
 }
 
 const getSignedClass = (isSigned: boolean): string => {
@@ -17,29 +18,35 @@ const getSignedClass = (isSigned: boolean): string => {
 };
 
 export const SignaturesTab: React.FC<TabProps> = ({ torrent }) => {
-    const initialSignatures = useTorrentSignaturesMock(torrent.info_hash);
-    const [addedSignatures, setAddedSignatures] = useState<TorrentSignature[]>([]);
-    const [isSignedByMe, setIsSignedByMe] = useState<boolean>(torrent.is_signed_by_me ?? false);
+    const { mutate: signTorrent } = useSignTorrent();
+    const [isSignedByMe, setIsSignedByMe] = useState<boolean>(false);
 
-    const allSignatures = [...addedSignatures, ...initialSignatures];
+    const identity: TorrentIdentity = {
+        info_hash: torrent.info_hash,
+        creator_pub_key: torrent.creator_public_key // Assuming you add this to your DTO or extract it from context
+    };
 
-    const handleNewSignature = useCallback((response: SignatureCreateResponse): void => {
-        const newSig: TorrentSignature = {
-            signer_user_id: 0,
-            signer_public_key: 'Ed25519_PubKey_Current_User',
-            signature_bytes: `SIG_ID_${response.signature_id}`,
-            is_valid: true,
-            signed_at: response.signed_at
-        };
-        setAddedSignatures((prev: TorrentSignature[]): TorrentSignature[] => [newSig, ...prev]);
+    const handleSignSuccess = useCallback((): void => {
+        void message.success('TORRENT CRYPTOGRAPHICALLY SIGNED');
         setIsSignedByMe(true);
     }, []);
+
+    const handleSignError = useCallback((error: Error): void => {
+        void message.error(`SIGNATURE FAILED: ${error.message}`);
+    }, []);
+
+    const handleSignClick = useCallback((): void => {
+        signTorrent(identity, {
+            onSuccess: handleSignSuccess,
+            onError: handleSignError
+        });
+    }, [signTorrent, identity, handleSignSuccess, handleSignError]);
 
     return (
         <div className={styles.tabContainer}>
             <div className={styles.sigRow}>
                 <span className={styles.sigLabel}>Network Signatures</span>
-                <span className={styles.sigValue}>{allSignatures.length}</span>
+                <span className={styles.sigValue}>{torrent.signatures.length}</span>
             </div>
             <div className={styles.sigRow}>
                 <span className={styles.sigLabel}>Local Cryptographic Signature</span>
@@ -47,14 +54,11 @@ export const SignaturesTab: React.FC<TabProps> = ({ torrent }) => {
                     {isSignedByMe ? 'VERIFIED' : 'UNSIGNED'}
                 </span>
             </div>
-
             <OptionalSignButton
                 isSignedByMe={isSignedByMe}
-                infoHash={torrent.info_hash}
-                onSignSuccess={handleNewSignature}
+                onSignClick={handleSignClick}
             />
-
-            <TorrentSignaturesList signatures={allSignatures} />
+            <TorrentSignaturesList signatures={torrent.signatures} />
         </div>
     );
 };

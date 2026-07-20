@@ -112,11 +112,11 @@ func (s *Service) persistAndStart(ctx context.Context, entity torrentModel.Torre
 	if err := s.repository.CreateTorrent(ctx, repoReq); err != nil {
 		return torrentModel.TorrentDTO{}, err
 	}
-	return s.startAndBuildDTO(entity)
+	return s.startAndBuildDTO(entity, pubKey)
 }
 
-func (s *Service) startAndBuildDTO(entity torrentModel.TorrentEntity) (torrentModel.TorrentDTO, error) {
-	if _, err := s.engine.StartDownload(entity.InfoBytes); err != nil {
+func (s *Service) startAndBuildDTO(entity torrentModel.TorrentEntity, pubKey []byte) (torrentModel.TorrentDTO, error) {
+	if _, err := s.engine.StartDownload(entity.InfoBytes, pubKey); err != nil {
 		return torrentModel.TorrentDTO{}, err
 	}
 	return s.mapper.ToDTO(entity, torrentModel.StatusDownloading, 0.0), nil
@@ -171,23 +171,31 @@ func (s *Service) ResumeTorrent(ctx context.Context, req service_ports.TorrentId
 		InfoHash:      req.InfoHash,
 		CreatorPubKey: req.CreatorPubKey,
 	}
-	infoBytes, err := s.storage.DownloadBaseTorrent(ctx, storageIdentityRequest)
+
+	// 1. Download the FULL torrent file from storage
+	fullFileBytes, err := s.storage.DownloadBaseTorrent(ctx, storageIdentityRequest)
 	if err != nil {
-		log.Printf("Error downloading torrent info from storage: %v", err)
-		return err
-	}
-	return s.resumeEngineAndStatus(ctx, infoBytes, req.UserID, req.InfoHash, req.CreatorPubKey)
-}
-
-func (s *Service) resumeEngineAndStatus(ctx context.Context, infoBytes []byte, userID int64, infoHash []byte, pubKey []byte) error {
-	if err := s.engine.ResumeTorrent(infoBytes); err != nil {
+		log.Printf("Error downloading torrent file from storage: %v", err)
 		return err
 	}
 
+	// 2. Parse the full file to extract the correct InfoBytes
+	mi, err := metainfo.Load(bytes.NewReader(fullFileBytes))
+	if err != nil {
+		log.Printf("Error parsing downloaded torrent file: %v", err)
+		return err
+	}
+
+	// 3. Resume the engine with the extracted InfoBytes
+	if err := s.engine.ResumeTorrent(mi.InfoBytes, req.CreatorPubKey); err != nil {
+		return err
+	}
+
+	// 4. Update the database status
 	repoReq := repository_ports.UpdateStatusRepositoryRequest{
-		UserID:        userID,
-		InfoHash:      infoHash,
-		CreatorPubKey: pubKey,
+		UserID:        req.UserID,
+		InfoHash:      req.InfoHash,
+		CreatorPubKey: req.CreatorPubKey,
 		Status:        torrentModel.StatusDownloading,
 	}
 	return s.repository.UpdateUserTorrentStatus(ctx, repoReq)

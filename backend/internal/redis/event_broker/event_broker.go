@@ -2,10 +2,12 @@ package event_broker
 
 import (
 	"context"
-	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/redis/ports"
-	"github.com/redis/go-redis/v9"
+	"errors"
 	"log"
 	"time"
+
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/redis/ports"
+	"github.com/redis/go-redis/v9"
 )
 
 const SubscribeChannelCapacity = 100
@@ -23,14 +25,13 @@ func (b *EventBroker) Publish(ctx context.Context, channel string, payload []byt
 		Stream: channel,
 		Values: map[string]any{"payload": payload},
 	}).Err()
-
 	if err != nil {
-		log.Printf("Redis XAdd failed: %v", err)
+		log.Printf("[BROKER] ❌ Redis XAdd failed: %v", err)
 	}
-
 	return err
 }
 
+// torrent_dd8255ecdc7ca55fb0bbf81323d87062db1f6d1c
 func (b *EventBroker) Subscribe(ctx context.Context, channel string) (<-chan ports.Event, error) {
 	ch := make(chan ports.Event, SubscribeChannelCapacity)
 	go b.streamReader(ctx, channel, ch)
@@ -38,13 +39,29 @@ func (b *EventBroker) Subscribe(ctx context.Context, channel string) (<-chan por
 }
 
 func (b *EventBroker) streamReader(ctx context.Context, channel string, ch chan<- ports.Event) {
+	log.Printf("[BROKER] 🎧 Starting stream reader for channel: %s", channel)
 	lastID := "$"
+
 	for {
-		msgs, err := b.readStream(ctx, channel, lastID)
-		if err != nil || ctx.Err() != nil {
+		// 1. Check if context is canceled (e.g., Hub stopped listening)
+		if ctx.Err() != nil {
+			log.Printf("[BROKER] ⚠️ Context canceled for %s", channel)
 			return
 		}
-		b.dispatchMessages(msgs, ch, &lastID)
+
+		msgs, err := b.readStream(ctx, channel, lastID)
+
+		// 2. If a REAL error occurred (not a timeout), log and exit
+		if err != nil {
+			log.Printf("[BROKER] ❌ readStream error for %s: %v", channel, err)
+			return
+		}
+
+		// 3. If we got messages, dispatch them
+		if len(msgs) > 0 {
+			log.Printf("[BROKER] 📦 Received %d messages from Redis for %s", len(msgs), channel)
+			b.dispatchMessages(channel, msgs, ch, &lastID)
+		}
 	}
 }
 
@@ -52,30 +69,40 @@ func (b *EventBroker) readStream(ctx context.Context, channel string, lastID str
 	res, err := b.client.XRead(ctx, &redis.XReadArgs{
 		Streams: []string{channel, lastID}, Count: 10, Block: 5 * time.Second,
 	}).Result()
-	if err != nil || len(res) == 0 {
+
+	if err != nil {
+		// CRITICAL FIX: Ignore redis.Nil (which means the 5s block timed out with no new messages)
+		if errors.Is(err, redis.Nil) {
+			return nil, nil
+		}
 		return nil, err
 	}
+
+	if len(res) == 0 {
+		return nil, nil
+	}
+
 	return res[0].Messages, nil
 }
 
-func (b *EventBroker) dispatchMessages(msgs []redis.XMessage, ch chan<- ports.Event, lastID *string) {
+func (b *EventBroker) dispatchMessages(channel string, msgs []redis.XMessage, ch chan<- ports.Event, lastID *string) {
 	for _, msg := range msgs {
-		if evt, ok := b.buildEvent(msg); ok {
+		if evt, ok := b.buildEvent(channel, msg); ok {
 			ch <- evt
 			*lastID = msg.ID
 		}
 	}
 }
 
-func (b *EventBroker) buildEvent(msg redis.XMessage) (ports.Event, bool) {
+func (b *EventBroker) buildEvent(channel string, msg redis.XMessage) (ports.Event, bool) {
 	str, ok := msg.Values["payload"].(string)
-	return ports.Event{ID: msg.ID, Payload: []byte(str)}, ok
+	return ports.Event{ID: msg.ID, Channel: channel, Payload: []byte(str)}, ok
 }
 
-func (b *EventBroker) mapToEvents(msgs []redis.XMessage) []ports.Event {
+func (b *EventBroker) mapToEvents(channel string, msgs []redis.XMessage) []ports.Event {
 	events := make([]ports.Event, 0, len(msgs))
 	for _, msg := range msgs {
-		if evt, ok := b.buildEvent(msg); ok {
+		if evt, ok := b.buildEvent(channel, msg); ok {
 			events = append(events, evt)
 		}
 	}
@@ -84,5 +111,5 @@ func (b *EventBroker) mapToEvents(msgs []redis.XMessage) []ports.Event {
 
 func (b *EventBroker) Poll(ctx context.Context, channel string, lastID string) ([]ports.Event, error) {
 	msgs, err := b.readStream(ctx, channel, lastID)
-	return b.mapToEvents(msgs), err
+	return b.mapToEvents(channel, msgs), err
 }

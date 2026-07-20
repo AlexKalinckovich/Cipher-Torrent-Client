@@ -2,6 +2,9 @@ package main
 
 import (
 	"database/sql"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/handlers/websocket_handler"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/redis/event_broker"
+	"github.com/gin-contrib/cors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -9,6 +12,7 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/config"
+	websocketHub "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/infrastructure/websocket"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/middleware"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/auth/jwt"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/model/common"
@@ -19,6 +23,14 @@ func main() {
 	dbConn := config.InitializeDatabase()
 	defer dbConn.Close()
 	engine := setupHTTPServer()
+
+	corsConfig := cors.DefaultConfig()
+	corsConfig.AllowOrigins = []string{"http://localhost:5173", "http://localhost:3000"}
+	corsConfig.AllowMethods = []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"}
+	corsConfig.AllowHeaders = []string{"Origin", "Content-Type", "Accept", "Authorization"}
+	corsConfig.AllowCredentials = true
+
+	engine.Use(cors.New(corsConfig))
 	registerGlobalMiddleware(engine)
 	redisClient := config.InitializeRedisClient()
 	registerV1Routes(engine, dbConn, redisClient)
@@ -56,6 +68,15 @@ func registerV1Routes(engine *gin.Engine, dbConn *sql.DB, redisClient *redis.Cli
 	bootstrapAuthModule(public, redisClient, userSvc)
 	bootstrapTorrentModule(private, dbConn, redisClient)
 	bootstrapTorrentSignatureModule(private, dbConn)
+
+	broker := event_broker.NewEventBroker(redisClient)
+
+	hub := websocketHub.NewHub(broker)
+
+	wsHandler := websocket_handler.NewWebSocketHandler(hub)
+
+	wsHandler.RegisterRoutes(public)
+
 }
 
 func createPublicGroup(v1 *gin.RouterGroup) *gin.RouterGroup {

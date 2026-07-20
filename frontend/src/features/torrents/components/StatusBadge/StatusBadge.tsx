@@ -1,20 +1,20 @@
 import React from 'react';
-import { DownloadOutlined, UploadOutlined, PauseCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
-import type { Torrent } from '@/types/model/models.ts';
+import { DownloadOutlined, UploadOutlined, PauseCircleOutlined, ClockCircleOutlined } from '@ant-design/icons';
+import type { TorrentDTO } from '@/types/model/models.ts';
 import type { BadgeConfig } from '@/features/torrents/types/dashboardTypes';
 import styles from './StatusBadge.module.css';
 
-const getBadgeConfig = (status: Torrent['status']): BadgeConfig => {
-    const configMap: Record<Torrent['status'], BadgeConfig> = {
+const getBadgeConfig = (status: TorrentDTO['status']): BadgeConfig => {
+    const configMap: Record<TorrentDTO['status'], BadgeConfig> = {
         downloading: { icon: <DownloadOutlined />, text: 'Downloading', className: styles.badgeDownloading },
         seeding: { icon: <UploadOutlined />, text: 'Seeding', className: styles.badgeSeeding },
         paused: { icon: <PauseCircleOutlined />, text: 'Paused', className: styles.badgePaused },
-        error: { icon: <CloseCircleOutlined />, text: 'Error', className: styles.badgeError },
+        idle: { icon: <ClockCircleOutlined />, text: 'Idle', className: styles.badgeIdle },
     };
     return configMap[status];
 };
 
-export const StatusBadge: React.FC<{ status: Torrent['status'] }> = ({ status }) => {
+export const StatusBadge: React.FC<{ status: TorrentDTO['status'] }> = ({ status }) => {
     const config: BadgeConfig = getBadgeConfig(status);
     const className: string = `${styles.statBadge} ${config.className}`;
     return (

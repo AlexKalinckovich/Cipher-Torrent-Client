@@ -30,7 +30,6 @@ const areStatsEqual = (prevProps: StatsSectionProps, nextProps: StatsSectionProp
         prevProps.stats.downloading === nextProps.stats.downloading &&
         prevProps.stats.seeding === nextProps.stats.seeding &&
         prevProps.stats.paused === nextProps.stats.paused &&
-        prevProps.stats.error === nextProps.stats.error &&
         prevProps.stats.totalSize === nextProps.stats.totalSize;
 };
 

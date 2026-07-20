@@ -6,6 +6,7 @@ import (
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/handlers/torrent_handler"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/handlers/torrent_signature_handler"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/handlers/user_handler"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/redis/event_broker"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/repository/minio"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/repository/torrent_signature"
 	torrent_signing "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/torrent_signature"
@@ -22,7 +23,6 @@ import (
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/config"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/mapper/torrent/meta_info"
 	userMapper "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/mapper/user"
-	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/redis/event_bus"
 	eventPorts "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/redis/ports"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/redis/token_store"
 	torrentRepo "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/repository/torrent"
@@ -97,7 +97,7 @@ func bootstrapAuthModule(rg *gin.RouterGroup, redisClient *redis.Client, userSvc
 }
 
 func bootstrapTorrentModule(rg *gin.RouterGroup, conn *sql.DB, redisClient *redis.Client) {
-	redisPublisher := event_bus.NewEventBus(redisClient)
+	redisPublisher := event_broker.NewEventBroker(redisClient)
 	keyPair := generateIdentity()
 	engine := initializeTorrentEngine(keyPair.PublicKey, redisPublisher)
 	storageRepo := initializeMinioStorage()

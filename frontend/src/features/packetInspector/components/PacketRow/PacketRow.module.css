@@ -1,6 +1,6 @@
 .row {
     display: flex;
-    gap: 16px;
+    gap: 32px;
     padding: 6px 12px;
     border-radius: 6px;
     cursor: pointer;
@@ -23,5 +23,5 @@
 .timestamp { color: #6b7280; width: 110px; flex-shrink: 0; }
 .direction { font-weight: bold; width: 40px; flex-shrink: 0; }
 .ip { color: #c4b5fd; width: 130px; flex-shrink: 0; }
-.type { color: #f472b6; width: 100px; flex-shrink: 0; font-weight: bold; text-transform: uppercase; }
+.type { color: #f472b6; width: 250px; flex-shrink: 0; font-weight: bold; text-transform: uppercase; }
 .size { color: #fbbf24; width: 80px; flex-shrink: 0; text-align: right; }

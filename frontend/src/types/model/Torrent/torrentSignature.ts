@@ -6,3 +6,8 @@ export interface TorrentSignature {
     signed_at: string;
 }
 
+export interface SignatureDTO {
+    signer_public_key: string; // Base64 or Hex string depending on your mapper
+    signature_bytes: string;
+    timestamp: number;
+}

@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import type { Torrent, TorrentFile } from '@/types/model/models.ts';
+import type { TorrentEntity, TorrentFile } from '@/types/model/models.ts';
 
 const generateMockFiles = (): TorrentFile[] => {
     return [
@@ -10,7 +10,7 @@ const generateMockFiles = (): TorrentFile[] => {
     ];
 };
 
-const getFiles = (torrent: Torrent): TorrentFile[] => {
+const getFiles = (torrent: TorrentEntity): TorrentFile[] => {
     const hasRealFiles: boolean = (torrent.files?.length ?? 0) > 0;
     if (hasRealFiles) {
         return torrent.files as TorrentFile[];
@@ -18,7 +18,7 @@ const getFiles = (torrent: Torrent): TorrentFile[] => {
     return generateMockFiles();
 };
 
-export const useTorrentFilesMock = (torrent: Torrent): TorrentFile[] => {
+export const useTorrentFilesMock = (torrent: TorrentEntity): TorrentFile[] => {
     return useMemo((): TorrentFile[] => {
         return getFiles(torrent);
     }, [torrent]);
