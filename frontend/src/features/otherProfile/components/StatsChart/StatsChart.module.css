@@ -1,0 +1,78 @@
+.statsChartContainer {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    width: 100%;
+}
+
+.legendSection {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-width: 200px;
+}
+
+.legendItem {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 16px;
+    background: rgba(13, 5, 20, 0.5);
+    border-radius: 16px;
+    border: 1px solid rgba(170, 59, 255, 0.1);
+    transition: transform 0.3s, border-color 0.3s;
+    white-space: nowrap;
+}
+
+.legendItem:hover {
+    transform: translateX(10px);
+    border-color: rgba(170, 59, 255, 0.5);
+}
+
+.colorDot {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.legendName {
+    color: #c4b5fd;
+    font-size: 26px;
+    flex: 1;
+}
+
+.legendVal {
+    color: #fff;
+    font-weight: 700;
+    font-family: monospace;
+    font-size: 28px;
+}
+
+.chartSection {
+    flex: 0 0 auto;
+    width: 180px;
+    height: 180px;
+    position: relative;
+}
+
+.chartTooltip {
+    background: rgba(13, 5, 20, 0.95);
+    border: 1px solid #c084fc;
+    padding: 12px;
+    border-radius: 12px;
+    box-shadow: 0 0 20px rgba(124, 58, 237, 0.5);
+}
+
+.tooltipName {
+    color: #a78bfa;
+    font-size: 26px;
+    margin-bottom: 4px;
+}
+
+.tooltipValue {
+    color: #fff;
+    font-size: 26px;
+    font-weight: 800;
+}

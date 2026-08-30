@@ -1,0 +1,7 @@
+.git
+.gitignore
+*.log
+torrent_data_dir/
+Dockerfile
+.dockerignore
+README.md

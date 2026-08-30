@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Dashboard } from './features/torrents/Dashboard';
 import {Authentication} from "./features/auth/Authentication.tsx";
 import {Profile} from "./features/profile/Profile.tsx";
+import {OtherUserProfile} from "./features/otherProfile/OtherUserProfile.tsx";
 import {PacketInspector} from "@/features/packetInspector/PacketInspector.tsx";
 
 export const App: React.FC = () => {
@@ -12,6 +13,7 @@ export const App: React.FC = () => {
           <Route path="/" element={renderAuthentication()} />
           <Route path="/dashboard" element={renderDashboard()} />
           <Route path="/profile" element={renderUserProfile()}/>
+          <Route path="/profile/:publicKey" element={renderOtherUserProfile()}/>
           <Route path="/inspector" element={renderPackageInspector()} />
         </Routes>
       </BrowserRouter>
@@ -28,6 +30,10 @@ const renderDashboard = (): React.ReactElement => {
 
 const renderUserProfile = () : React.ReactElement => {
     return <Profile />;
+}
+
+const renderOtherUserProfile = () : React.ReactElement => {
+    return <OtherUserProfile />;
 }
 
 const renderPackageInspector = () : React.ReactElement => {

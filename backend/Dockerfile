@@ -1,16 +1,24 @@
-FROM golang:1.19 AS build
-WORKDIR /go/src
-COPY model ./go
-COPY main.go .
-COPY go.sum .
-COPY go.mod .
+# ---- Build stage ----
+FROM golang:1.25-alpine AS build
+WORKDIR /src
 
-ENV CGO_ENABLED=0
+# Cache dependencies first
+COPY go.mod go.sum ./
+RUN go mod download
 
-RUN go build -o openapi .
+# Copy source and build static binary
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -o /bin/server .
 
-FROM scratch AS runtime
-ENV GIN_MODE=release
-COPY --from=build /model/src/openapi ./
-EXPOSE 8080/tcp
-ENTRYPOINT ["./openapi"]
+# ---- Runtime stage (no package manager needed) ----
+FROM gcr.io/distroless/static-debian12:nonroot
+WORKDIR /app/backend
+
+# The Go app resolves env via godotenv.Load("../containerization/.env")
+# relative to its working directory. The compose file mounts the .env there
+# and provides /data via a named volume.
+ENV TORRENT_DATA_DIR=/data
+
+COPY --from=build /bin/server /app/backend/server
+EXPOSE 8080
+ENTRYPOINT ["/app/backend/server"]

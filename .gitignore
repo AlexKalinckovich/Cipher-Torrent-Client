@@ -1,0 +1,15 @@
+# Environment files (secrets)
+.env
+**/.env
+!**/.env.example
+
+# Go
+backend/torrent_data_dir/
+backend/*.exe
+
+# Editor / OS
+.DS_Store
+.idea
+.vscode/*
+.history/containerization/.env_20260830181731
+.history/containerization/.env_20260830183315

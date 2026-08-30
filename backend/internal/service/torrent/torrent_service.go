@@ -3,9 +3,12 @@ package torrent
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/repository/torrent/repository_ports"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/torrent/service_ports"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/torrent/stats"
 	"io"
 	"log"
 	"mime/multipart"
@@ -19,19 +22,13 @@ import (
 	torrentModel "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/model/torrent"
 )
 
-type creationPayload struct {
-	mi     *metainfo.MetaInfo
-	entity torrentModel.TorrentEntity
-	userID int64
-	pubKey []byte
-}
-
 type Service struct {
-	repository repository_ports.TorrentRepositoryPort
-	engine     service_ports.TorrentEngine
-	storage    storage_ports.TorrentStoragePort
-	userRepo   user.UserRepositoryPort
-	mapper     *meta_info.MetainfoMapper
+	repository   repository_ports.TorrentRepositoryPort
+	engine       service_ports.TorrentEngine
+	storage      storage_ports.TorrentStoragePort
+	userRepo     user.UserRepositoryPort
+	mapper       *meta_info.MetainfoMapper
+	statsTracker *stats.StatsTracker
 }
 
 func NewService(
@@ -40,13 +37,15 @@ func NewService(
 	storage storage_ports.TorrentStoragePort,
 	userRepo user.UserRepositoryPort,
 	mapper *meta_info.MetainfoMapper,
+	statsTracker *stats.StatsTracker,
 ) *Service {
 	return &Service{
-		repository: repository,
-		engine:     engine,
-		storage:    storage,
-		userRepo:   userRepo,
-		mapper:     mapper,
+		repository:   repository,
+		engine:       engine,
+		storage:      storage,
+		userRepo:     userRepo,
+		mapper:       mapper,
+		statsTracker: statsTracker,
 	}
 }
 
@@ -59,13 +58,12 @@ func (s *Service) Inspect(file multipart.File) (torrentModel.TorrentEntity, erro
 }
 
 func (s *Service) Create(ctx context.Context, req service_ports.CreateTorrentServiceRequest) (torrentModel.TorrentDTO, error) {
-	// 1. Read the FULL file bytes from the multipart upload
+
 	fullFileBytes, err := io.ReadAll(req.File)
 	if err != nil {
 		return torrentModel.TorrentDTO{}, err
 	}
 
-	// 2. Parse the metainfo from the full bytes
 	mi, err := metainfo.Load(bytes.NewReader(fullFileBytes))
 	if err != nil {
 		return torrentModel.TorrentDTO{}, err
@@ -94,7 +92,7 @@ func (s *Service) uploadToMinioAndPersist(ctx context.Context, mi *metainfo.Meta
 	storageUploadRequest := storage_ports.StorageUploadRequest{
 		InfoHash:      entity.InfoHash,
 		CreatorPubKey: pubKey,
-		FileBytes:     fullFileBytes, // <--- SAVE THE FULL FILE, NOT JUST InfoBytes!
+		FileBytes:     fullFileBytes,
 	}
 	if err := s.storage.UploadBaseTorrent(ctx, storageUploadRequest); err != nil {
 		log.Printf("Error uploading torrent to minio: %v", err)
@@ -112,13 +110,16 @@ func (s *Service) persistAndStart(ctx context.Context, entity torrentModel.Torre
 	if err := s.repository.CreateTorrent(ctx, repoReq); err != nil {
 		return torrentModel.TorrentDTO{}, err
 	}
-	return s.startAndBuildDTO(entity, pubKey)
+	return s.startAndBuildDTO(entity, userID, pubKey)
 }
 
-func (s *Service) startAndBuildDTO(entity torrentModel.TorrentEntity, pubKey []byte) (torrentModel.TorrentDTO, error) {
+func (s *Service) startAndBuildDTO(entity torrentModel.TorrentEntity, userID int64, pubKey []byte) (torrentModel.TorrentDTO, error) {
 	if _, err := s.engine.StartDownload(entity.InfoBytes, pubKey); err != nil {
 		return torrentModel.TorrentDTO{}, err
 	}
+
+	s.statsTracker.RegisterTorrent(hex.EncodeToString(entity.InfoHash), base64.RawURLEncoding.EncodeToString(pubKey), userID)
+
 	return s.mapper.ToDTO(entity, torrentModel.StatusDownloading, 0.0), nil
 }
 
@@ -172,26 +173,28 @@ func (s *Service) ResumeTorrent(ctx context.Context, req service_ports.TorrentId
 		CreatorPubKey: req.CreatorPubKey,
 	}
 
-	// 1. Download the FULL torrent file from storage
 	fullFileBytes, err := s.storage.DownloadBaseTorrent(ctx, storageIdentityRequest)
 	if err != nil {
 		log.Printf("Error downloading torrent file from storage: %v", err)
 		return err
 	}
 
-	// 2. Parse the full file to extract the correct InfoBytes
 	mi, err := metainfo.Load(bytes.NewReader(fullFileBytes))
 	if err != nil {
 		log.Printf("Error parsing downloaded torrent file: %v", err)
 		return err
 	}
 
-	// 3. Resume the engine with the extracted InfoBytes
 	if err := s.engine.ResumeTorrent(mi.InfoBytes, req.CreatorPubKey); err != nil {
 		return err
 	}
 
-	// 4. Update the database status
+	s.statsTracker.RegisterTorrent(
+		hex.EncodeToString(req.InfoHash),
+		base64.RawURLEncoding.EncodeToString(req.CreatorPubKey),
+		req.UserID,
+	)
+
 	repoReq := repository_ports.UpdateStatusRepositoryRequest{
 		UserID:        req.UserID,
 		InfoHash:      req.InfoHash,
@@ -200,7 +203,6 @@ func (s *Service) ResumeTorrent(ctx context.Context, req service_ports.TorrentId
 	}
 	return s.repository.UpdateUserTorrentStatus(ctx, repoReq)
 }
-
 func (s *Service) UpdateProgress(ctx context.Context, req service_ports.UpdateProgressServiceRequest) error {
 
 	repoReq := repository_ports.UpdateProgressRepositoryRequest{
@@ -216,6 +218,9 @@ func (s *Service) DeleteTorrent(ctx context.Context, req service_ports.TorrentId
 	if err := s.pauseTorrentIfRunning(req.InfoHash); err != nil {
 		return err
 	}
+
+	s.statsTracker.UnregisterTorrent(hex.EncodeToString(req.InfoHash), base64.RawURLEncoding.EncodeToString(req.CreatorPubKey))
+
 	return s.deleteStorageAndDatabase(ctx, req.UserID, req.InfoHash, req.CreatorPubKey)
 }
 

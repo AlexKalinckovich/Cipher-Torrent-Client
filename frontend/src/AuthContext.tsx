@@ -25,8 +25,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     useEffect(() => {
         const initializeAuth = async () => {
-            const token = tokenRepo.getAccessToken();
-            const cachedUser = tokenRepo.getUser();
+            const token: string | null = tokenRepo.getAccessToken();
+            const cachedUser: UserFull | null = tokenRepo.getUser();
 
             if (token && !cachedUser) {
                 try {
