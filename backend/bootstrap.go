@@ -10,8 +10,8 @@ import (
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/repository/minio"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/repository/torrent_signature"
 	torrent_signing "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/torrent_signature"
-	signing2 "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/torrent_signature/meta_info_signer"
-	signing "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/torrent_signature/signature_builder"
+	meta_info_signing "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/torrent_signature/meta_info_signer"
+	signature_builder "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/torrent_signature/signature_builder"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -30,6 +30,7 @@ import (
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/auth"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/torrent"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/torrent/infra"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/torrent/stats"
 	userService "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/user"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/auth/jwt"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/dpki"
@@ -69,8 +70,8 @@ func bootstrapTorrentSignatureModule(rg *gin.RouterGroup, conn *sql.DB) {
 	masterKey := config.GetRequiredEnv("AES_MASTER_KEY")
 	cryptoService := initializeCryptoService(masterKey)
 
-	signatureBuilder := signing.NewSignatureBuilder()
-	metaInfoSigner := signing2.NewMetaInfoSigner()
+	signatureBuilder := signature_builder.NewSignatureBuilder()
+	metaInfoSigner := meta_info_signing.NewMetaInfoSigner()
 	storageRepo := initializeMinioStorage()
 
 	service := torrent_signing.NewService(
@@ -106,7 +107,12 @@ func bootstrapTorrentModule(rg *gin.RouterGroup, conn *sql.DB, redisClient *redi
 	userQueries := userDb.New(conn)
 	userRepository := userRepo.NewUserRepository(conn, userQueries)
 	mapper := meta_info.NewMetainfoMapper()
-	service := torrent.NewService(repository, engine, storageRepo, userRepository, mapper)
+
+	// Initialize stats tracker
+	userRepoForStats := userRepo.NewUserRepository(conn, userQueries)
+	statsTracker := stats.NewStatsTracker(redisPublisher, userRepoForStats)
+
+	service := torrent.NewService(repository, engine, storageRepo, userRepository, mapper, statsTracker)
 	handler := torrent_handler.NewTorrentHandler(service)
 	handler.RegisterRoutes(rg)
 }

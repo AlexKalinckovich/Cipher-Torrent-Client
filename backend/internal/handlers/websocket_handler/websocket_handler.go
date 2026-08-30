@@ -48,14 +48,14 @@ func (h *WebSocketHandler) HandleDashboard(c *gin.Context) {
 
 func (h *WebSocketHandler) Handle(c *gin.Context) {
 	infoHash := c.Param("infoHash")
-	log.Printf("[WS] Incoming WebSocket connection request for infoHash: %s", infoHash)
+	//log.Printf("[WS] Incoming WebSocket connection request for infoHash: %s", infoHash)
 
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		log.Printf("[WS] Failed to upgrade connection: %v", err)
 		return
 	}
-	log.Printf("[WS] Connection upgraded successfully for infoHash: %s", infoHash)
+	//log.Printf("[WS] Connection upgraded successfully for infoHash: %s", infoHash)
 
 	client := h.createClient(infoHash)
 	h.hub.Register(client)
@@ -78,7 +78,7 @@ func generateID() string {
 
 func (h *WebSocketHandler) writePump(conn *websocket.Conn, client *websocketHub.Client) {
 	defer conn.Close()
-	log.Printf("[WS] Write pump started for client %s", client.ID)
+	//log.Printf("[WS] Write pump started for client %s", client.ID)
 
 	for msg := range client.Send {
 		if err := conn.WriteMessage(websocket.TextMessage, msg); err != nil {
@@ -86,17 +86,17 @@ func (h *WebSocketHandler) writePump(conn *websocket.Conn, client *websocketHub.
 			return
 		}
 	}
-	log.Printf("[WS] Write pump stopped for client %s", client.ID)
+	//log.Printf("[WS] Write pump stopped for client %s", client.ID)
 }
 
 func (h *WebSocketHandler) readPump(conn *websocket.Conn, client *websocketHub.Client) {
 	defer h.hub.Unregister(client)
 	defer close(client.Send)
-	log.Printf("[WS] Read pump started for client %s", client.ID)
+	//log.Printf("[WS] Read pump started for client %s", client.ID)
 
 	for {
 		if _, _, err := conn.ReadMessage(); err != nil {
-			log.Printf("[WS] Read error for client %s: %v", client.ID, err)
+			//		log.Printf("[WS] Read error for client %s: %v", client.ID, err)
 			return
 		}
 	}

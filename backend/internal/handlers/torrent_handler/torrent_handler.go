@@ -1,8 +1,8 @@
 package torrent_handler
 
 import (
-	"context"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/torrent/service_ports"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/models"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/transport/decoders/base64_decoder"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/transport/decoders/hex_decoder"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/transport/json_binder"
@@ -11,8 +11,6 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-
-	torrentModel "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/model/torrent"
 )
 
 const (
@@ -23,33 +21,12 @@ const (
 	peerIDKey          = "peer_id"
 )
 
-type progressRequest struct {
-	Progress float32 `json:"progress"`
-}
-
-type AddTorrentHandlerRequest struct {
-	InfoHash      string `json:"info_hash"`
-	CreatorPubKey string `json:"creator_pub_key"`
-}
-
-type TorrentServicePort interface {
-	Inspect(file multipart.File) (torrentModel.TorrentEntity, error)
-	Create(ctx context.Context, req service_ports.CreateTorrentServiceRequest) (torrentModel.TorrentDTO, error)
-	Add(ctx context.Context, req service_ports.AddTorrentServiceRequest) error
-	GetByInfoHash(ctx context.Context, req service_ports.TorrentIdentityServiceRequest) (torrentModel.TorrentEntity, error)
-	GetUserTorrents(ctx context.Context, userID int64) ([]torrentModel.TorrentDTO, error)
-	PauseTorrent(ctx context.Context, req service_ports.TorrentIdentityServiceRequest) error
-	ResumeTorrent(ctx context.Context, req service_ports.TorrentIdentityServiceRequest) error
-	UpdateProgress(ctx context.Context, req service_ports.UpdateProgressServiceRequest) error
-	DeleteTorrent(ctx context.Context, req service_ports.TorrentIdentityServiceRequest) error
-}
-
 type TorrentHandler struct {
-	service      TorrentServicePort
+	service      service_ports.TorrentServicePort
 	retranslator *TorrentHandlerErrorRetranslator
 }
 
-func NewTorrentHandler(service TorrentServicePort) *TorrentHandler {
+func NewTorrentHandler(service service_ports.TorrentServicePort) *TorrentHandler {
 	return &TorrentHandler{
 		service:      service,
 		retranslator: NewTorrentHandlerErrorRetranslator(),
@@ -96,7 +73,7 @@ func (h *TorrentHandler) buildAndExecuteCreate(c *gin.Context, file multipart.Fi
 }
 
 func (h *TorrentHandler) Add(c *gin.Context) {
-	identity, err := h.extractIdentity(c)
+	identity, err := h.extractTorrentIdentity(c)
 	if err != nil {
 		h.fail(c, err)
 		return
@@ -104,11 +81,11 @@ func (h *TorrentHandler) Add(c *gin.Context) {
 	h.executeAdd(c, identity)
 }
 
-func (h *TorrentHandler) executeAdd(c *gin.Context, identity service_ports.TorrentIdentityServiceRequest) {
+func (h *TorrentHandler) executeAdd(c *gin.Context, identity models.TorrentIdentity) {
 	req := service_ports.AddTorrentServiceRequest{
+		UserID:        h.extractUserID(c),
 		InfoHash:      identity.InfoHash,
 		CreatorPubKey: identity.CreatorPubKey,
-		UserID:        h.extractUserID(c),
 	}
 	err := h.service.Add(c.Request.Context(), req)
 	h.respondEmpty(c, http.StatusOK, err)
@@ -121,37 +98,49 @@ func (h *TorrentHandler) GetUserTorrents(c *gin.Context) {
 }
 
 func (h *TorrentHandler) GetByInfoHash(c *gin.Context) {
-	identity, err := h.extractIdentity(c)
+	identity, err := h.extractTorrentIdentity(c)
 	if err != nil {
 		h.fail(c, err)
 		return
 	}
-	res, err := h.service.GetByInfoHash(c.Request.Context(), identity)
+	res, err := h.service.GetByInfoHash(c.Request.Context(), service_ports.TorrentIdentityServiceRequest{
+		UserID:        h.extractUserID(c),
+		InfoHash:      identity.InfoHash,
+		CreatorPubKey: identity.CreatorPubKey,
+	})
 	h.respond(c, http.StatusOK, res, err)
 }
 
 func (h *TorrentHandler) PauseTorrent(c *gin.Context) {
-	identity, err := h.extractIdentity(c)
+	identity, err := h.extractTorrentIdentity(c)
 	if err != nil {
 		h.fail(c, err)
 		return
 	}
-	err = h.service.PauseTorrent(c.Request.Context(), identity)
+	err = h.service.PauseTorrent(c.Request.Context(), service_ports.TorrentIdentityServiceRequest{
+		UserID:        h.extractUserID(c),
+		InfoHash:      identity.InfoHash,
+		CreatorPubKey: identity.CreatorPubKey,
+	})
 	h.respondEmpty(c, http.StatusOK, err)
 }
 
 func (h *TorrentHandler) ResumeTorrent(c *gin.Context) {
-	identity, err := h.extractIdentity(c)
+	identity, err := h.extractTorrentIdentity(c)
 	if err != nil {
 		h.fail(c, err)
 		return
 	}
-	err = h.service.ResumeTorrent(c.Request.Context(), identity)
+	err = h.service.ResumeTorrent(c.Request.Context(), service_ports.TorrentIdentityServiceRequest{
+		UserID:        h.extractUserID(c),
+		InfoHash:      identity.InfoHash,
+		CreatorPubKey: identity.CreatorPubKey,
+	})
 	h.respondEmpty(c, http.StatusOK, err)
 }
 
 func (h *TorrentHandler) UpdateProgress(c *gin.Context) {
-	identity, err := h.extractIdentity(c)
+	identity, err := h.extractTorrentIdentity(c)
 	if err != nil {
 		h.fail(c, err)
 		return
@@ -159,8 +148,8 @@ func (h *TorrentHandler) UpdateProgress(c *gin.Context) {
 	h.processProgressUpdate(c, identity)
 }
 
-func (h *TorrentHandler) processProgressUpdate(c *gin.Context, identity service_ports.TorrentIdentityServiceRequest) {
-	var reqBody progressRequest
+func (h *TorrentHandler) processProgressUpdate(c *gin.Context, identity models.TorrentIdentity) {
+	var reqBody models.ProgressUpdateBody
 	if err := c.ShouldBindJSON(&reqBody); err != nil {
 		h.fail(c, err)
 		return
@@ -208,34 +197,39 @@ func (h *TorrentHandler) extractCreatorPubKey(c *gin.Context) ([]byte, error) {
 	return []byte(hexStr), nil
 }
 
-func (h *TorrentHandler) extractIdentity(c *gin.Context) (service_ports.TorrentIdentityServiceRequest, error) {
-	bindRes := json_binder.BindJSON[AddTorrentHandlerRequest](c)
+func (h *TorrentHandler) extractTorrentIdentity(c *gin.Context) (models.TorrentIdentity, error) {
+	type torrentIdentityRequest struct {
+		InfoHash      string `json:"info_hash"`
+		CreatorPubKey string `json:"creator_pub_key"`
+	}
+
+	bindRes := json_binder.BindJSON[torrentIdentityRequest](c)
 	if bindRes.Err != nil {
-		return service_ports.TorrentIdentityServiceRequest{}, bindRes.Err
+		return models.TorrentIdentity{}, bindRes.Err
 	}
 
 	infoHash, err := hex_decoder.DecodeHexParam(bindRes.Value.InfoHash)
 	if err != nil {
-		return service_ports.TorrentIdentityServiceRequest{}, err
+		return models.TorrentIdentity{}, err
 	}
 
 	creatorPubKey, err := base64_decoder.DecodeBase64Param(bindRes.Value.CreatorPubKey)
 	if err != nil {
-		return service_ports.TorrentIdentityServiceRequest{}, err
+		return models.TorrentIdentity{}, err
 	}
 
-	return service_ports.TorrentIdentityServiceRequest{
+	return models.TorrentIdentity{
 		InfoHash:      infoHash,
 		CreatorPubKey: creatorPubKey,
 	}, nil
 }
 
-func (h *TorrentHandler) extractUserTorrentIdentity(c *gin.Context) (service_ports.TorrentIdentityServiceRequest, error) {
-	identity, err := h.extractIdentity(c)
+func (h *TorrentHandler) extractUserTorrentIdentity(c *gin.Context) (models.UserTorrentIdentity, error) {
+	identity, err := h.extractTorrentIdentity(c)
 	if err != nil {
-		return service_ports.TorrentIdentityServiceRequest{}, err
+		return models.UserTorrentIdentity{}, err
 	}
-	return service_ports.TorrentIdentityServiceRequest{
+	return models.UserTorrentIdentity{
 		UserID:        h.extractUserID(c),
 		InfoHash:      identity.InfoHash,
 		CreatorPubKey: identity.CreatorPubKey,

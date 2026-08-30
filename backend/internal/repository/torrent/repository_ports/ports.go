@@ -2,14 +2,11 @@ package repository_ports
 
 import (
 	"context"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/models"
 	torrentModel "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/model/torrent"
 )
 
-type TorrentIdentityRepositoryRequest struct {
-	InfoHash      []byte
-	CreatorPubKey []byte
-}
-
+type TorrentIdentityRepositoryRequest = models.TorrentIdentity
 type CreateTorrentRepositoryRequest struct {
 	Entity        torrentModel.TorrentEntity
 	CreatorPubKey []byte
@@ -23,25 +20,9 @@ type CreateUserTorrentRepositoryRequest struct {
 	Status        torrentModel.TorrentStatus
 }
 
-type UserTorrentIdentityRepositoryRequest struct {
-	UserID        int64
-	InfoHash      []byte
-	CreatorPubKey []byte
-}
-
-type UpdateStatusRepositoryRequest struct {
-	UserID        int64
-	InfoHash      []byte
-	CreatorPubKey []byte
-	Status        torrentModel.TorrentStatus
-}
-
-type UpdateProgressRepositoryRequest struct {
-	UserID        int64
-	InfoHash      []byte
-	CreatorPubKey []byte
-	Progress      float32
-}
+type UserTorrentIdentityRepositoryRequest = models.UserTorrentIdentity
+type UpdateStatusRepositoryRequest = models.UpdateTorrentStatusRequest
+type UpdateProgressRepositoryRequest = models.UpdateTorrentProgressRequest
 
 type TorrentRepositoryPort interface {
 	CreateTorrent(ctx context.Context, req CreateTorrentRepositoryRequest) error
