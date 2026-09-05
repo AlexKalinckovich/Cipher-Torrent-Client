@@ -34,30 +34,6 @@ export const useSignTorrent = (): UseMutationResult<TorrentDTO, Error, TorrentId
     });
 };
 
-export const usePauseTorrent = (): UseMutationResult<void, Error, TorrentIdentity> => {
-    const queryClient = useQueryClient();
-    return useMutation<void, Error, TorrentIdentity>({
-        mutationFn: (identity: TorrentIdentity): Promise<void> => {
-            return torrentService.pauseTorrent(identity);
-        },
-        onSuccess: (): void => {
-            void queryClient.invalidateQueries({ queryKey: ['torrents'] });
-        }
-    });
-};
-
-export const useResumeTorrent = (): UseMutationResult<void, Error, TorrentIdentity> => {
-    const queryClient = useQueryClient();
-    return useMutation<void, Error, TorrentIdentity>({
-        mutationFn: (identity: TorrentIdentity): Promise<void> => {
-            return torrentService.resumeTorrent(identity);
-        },
-        onSuccess: (): void => {
-            void queryClient.invalidateQueries({ queryKey: ['torrents'] });
-        }
-    });
-};
-
 export const useDeleteTorrent = (): UseMutationResult<void, Error, TorrentIdentity> => {
     const queryClient = useQueryClient();
     return useMutation<void, Error, TorrentIdentity>({

@@ -21,8 +21,8 @@ const ActiveDetailsPanelComponent: React.FC<ActiveDetailsPanelProps> = ({ packet
             </div>
 
             <div className={styles.dataBlock}>
-                <span className={styles.dataLabel}>Raw Payload (Base64)</span>
-                <div className={styles.dataContent}>{packet.raw_payload_base64}</div>
+                <span className={styles.dataLabel}>Parsed Payload</span>
+                <div className={styles.dataContent}>{packet.parsed_info ?? 'N/A'}</div>
             </div>
 
             <OptionalReputationBlock payload={packet.reputation_payload} />

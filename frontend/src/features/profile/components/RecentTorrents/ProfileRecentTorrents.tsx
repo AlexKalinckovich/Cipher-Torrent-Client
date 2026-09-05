@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { RightOutlined } from '@ant-design/icons';
 import { message, Skeleton } from 'antd';
 import { useTorrents, useAddTorrent } from '@/hooks/useTorrents.ts';
-import type {TorrentDTO, TorrentAddRequest, TorrentIdentity} from '@/types/model/models.ts';
+import type {TorrentDTO, TorrentIdentity} from '@/types/model/models.ts';
 import { AddTorrentModal } from '@/features/torrents/components/AddTorrentModal/AddTorrentModal';
 import { RecentTorrentsHeader } from './RecentTorrentsHeader';
 import { RecentTorrentsList } from './RecentTorrentsList';

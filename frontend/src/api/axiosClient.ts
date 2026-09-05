@@ -96,8 +96,3 @@ export class HttpClient {
 }
 
 export const api: AxiosInstance = new HttpClient().getInstance();
-
-const isDev: boolean = import.meta.env ? import.meta.env.DEV : false;
-if (isDev) {
-    //new MockServer(api);
-}

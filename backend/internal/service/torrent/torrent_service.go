@@ -214,6 +214,25 @@ func (s *Service) UpdateProgress(ctx context.Context, req service_ports.UpdatePr
 	return s.repository.UpdateUserTorrentProgress(ctx, repoReq)
 }
 
+func (s *Service) DownloadFile(ctx context.Context, req service_ports.DownloadFileServiceRequest) (io.ReadCloser, string, error) {
+	storageIdentityRequest := storage_ports.StorageIdentityRequest{
+		InfoHash:      req.InfoHash,
+		CreatorPubKey: req.CreatorPubKey,
+	}
+
+	fullFileBytes, err := s.storage.DownloadBaseTorrent(ctx, storageIdentityRequest)
+	if err != nil {
+		return nil, "", err
+	}
+
+	mi, err := metainfo.Load(bytes.NewReader(fullFileBytes))
+	if err != nil {
+		return nil, "", err
+	}
+
+	return s.engine.DownloadFile(mi.InfoBytes, req.FilePath)
+}
+
 func (s *Service) DeleteTorrent(ctx context.Context, req service_ports.TorrentIdentityServiceRequest) error {
 	if err := s.pauseTorrentIfRunning(req.InfoHash); err != nil {
 		return err

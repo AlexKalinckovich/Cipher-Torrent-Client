@@ -7,6 +7,9 @@
 backend/torrent_data_dir/
 backend/*.exe
 
+# sqlc generated code (regenerated via `sqlc generate`)
+backend/internal/service/**/generated/
+
 # Editor / OS
 .DS_Store
 .idea

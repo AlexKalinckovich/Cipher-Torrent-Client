@@ -1,5 +1,5 @@
 import React from 'react';
-import { PlayCircleOutlined, PauseCircleOutlined, DeleteOutlined, InfoCircleOutlined } from '@ant-design/icons';
+import { PlayCircleOutlined, PauseCircleOutlined, DeleteOutlined, InfoCircleOutlined, DownloadOutlined } from '@ant-design/icons';
 import styles from './ActionButtons.module.css';
 
 interface ActionButtonsProps {
@@ -7,15 +7,17 @@ interface ActionButtonsProps {
     onPause: () => void;
     onRemove: () => void;
     onInfo: () => void;
+    onDownload: () => void;
     playClassName: string;
     pauseClassName: string;
     removeClassName: string;
     infoClassName: string;
+    downloadClassName: string;
 }
 
 export const ActionButtons: React.FC<ActionButtonsProps> = ({
-                                                                onPlay, onPause, onRemove, onInfo,
-                                                                playClassName, pauseClassName, removeClassName, infoClassName
+                                                                onPlay, onPause, onRemove, onInfo, onDownload,
+                                                                playClassName, pauseClassName, removeClassName, infoClassName, downloadClassName
                                                             }) => {
     return (
         <div className={styles.actionContainer}>
@@ -30,6 +32,9 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
             </button>
             <button type="button" className={removeClassName} onClick={onRemove}>
                 <DeleteOutlined />
+            </button>
+            <button type="button" className={downloadClassName} onClick={onDownload}>
+                <DownloadOutlined />
             </button>
         </div>
     );

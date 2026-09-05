@@ -2,15 +2,14 @@ import { api } from './axiosClient.ts';
 import type {
     TorrentDTO,
     TorrentEntity,
-    TorrentIdentity,
-    ProgressUpdateRequest
-} from '../types/model/models.ts'; // Adjust import path to your models file
+    TorrentIdentity
+} from '../types/model/models.ts';
 
 export class TorrentService {
 
     /**
      * GET /torrents/
-     * Fetches all torrents for the authenticated user.
+     * Fetches all torrents for the authenticated user (catalog only).
      */
     public async getTorrents(): Promise<TorrentDTO[]> {
         const response = await api.get<TorrentDTO[]>('/torrents/');
@@ -53,31 +52,6 @@ export class TorrentService {
     }
 
     /**
-     * POST /torrents/pause
-     * Pauses a torrent (JSON body).
-     */
-    public async pauseTorrent(identity: TorrentIdentity): Promise<void> {
-        await api.post('/torrents/pause', identity);
-    }
-
-    /**
-     * POST /torrents/resume
-     * Resumes a torrent (JSON body).
-     */
-    public async resumeTorrent(identity: TorrentIdentity): Promise<void> {
-        await api.post('/torrents/resume', identity);
-    }
-
-    /**
-     * POST /torrents/progress
-     * Updates the download progress of a torrent (JSON body).
-     */
-    public async updateProgress(identity: TorrentIdentity, progress: number): Promise<void> {
-        const req: ProgressUpdateRequest = { ...identity, progress };
-        await api.post('/torrents/progress', req);
-    }
-
-    /**
      * DELETE /torrents/
      * Deletes a torrent from storage and database (JSON body).
      * Note: Axios requires the `data` property to send a body in a DELETE request.
@@ -92,6 +66,18 @@ export class TorrentService {
      */
     public async signTorrent(identity: TorrentIdentity): Promise<TorrentDTO> {
         const response = await api.post<TorrentDTO>('/torrents/sign', identity);
+        return response.data;
+    }
+
+    /**
+     * POST /torrents/download
+     * Fetches only the signed .torrent METADATA (small descriptor), NOT content.
+     * The client feeds these bytes to WebTorrent to download actual data in-browser.
+     */
+    public async downloadTorrentFile(identity: TorrentIdentity): Promise<Blob> {
+        const response = await api.post<Blob>('/torrents/download', identity, {
+            responseType: 'blob'
+        });
         return response.data;
     }
 }

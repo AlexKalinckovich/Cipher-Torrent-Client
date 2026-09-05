@@ -1,13 +1,6 @@
-export type PacketDirection = 'inbound' | 'outbound';
+import type { ReputationReceipt } from '../Reputation/reputationReceipt';
 
-export interface ReputationReceipt {
-    info_hash: string;
-    from_pub_key: string;
-    to_pub_key: string;
-    piece_index: number;
-    byte_count: number;
-    timestamp: number;
-}
+export type PacketDirection = 'inbound' | 'outbound';
 
 export interface PacketLog {
     id: number;

@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/models"
 	torrentModel "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/model/torrent"
+	"io"
 	"mime/multipart"
 )
 
@@ -11,6 +12,12 @@ type CreateTorrentServiceRequest = models.CreateTorrentRequest
 type AddTorrentServiceRequest = models.AddTorrentRequest
 type TorrentIdentityServiceRequest = models.UserTorrentIdentity
 type UpdateProgressServiceRequest = models.UpdateTorrentProgressRequest
+
+type DownloadFileServiceRequest struct {
+	InfoHash      []byte
+	CreatorPubKey []byte
+	FilePath      string
+}
 
 type TorrentServicePort interface {
 	Inspect(file multipart.File) (torrentModel.TorrentEntity, error)
@@ -22,12 +29,14 @@ type TorrentServicePort interface {
 	ResumeTorrent(ctx context.Context, req TorrentIdentityServiceRequest) error
 	UpdateProgress(ctx context.Context, req UpdateProgressServiceRequest) error
 	DeleteTorrent(ctx context.Context, req TorrentIdentityServiceRequest) error
+	DownloadFile(ctx context.Context, req DownloadFileServiceRequest) (io.ReadCloser, string, error)
 }
 
 type TorrentEngine interface {
 	StartDownload(infoBytes []byte, key []byte) (string, error)
 	PauseTorrent(infoHash []byte) error
 	ResumeTorrent(infoBytes []byte, key []byte) error
+	DownloadFile(infoBytes []byte, filePath string) (io.ReadCloser, string, error)
 }
 
 type TorrentValidatorPort interface {

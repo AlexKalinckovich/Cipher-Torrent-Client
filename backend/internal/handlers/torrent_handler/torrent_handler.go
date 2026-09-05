@@ -6,6 +6,7 @@ import (
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/transport/decoders/base64_decoder"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/transport/decoders/hex_decoder"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/transport/json_binder"
+	"io"
 	"log"
 	"mime/multipart"
 	"net/http"
@@ -39,6 +40,7 @@ func (h *TorrentHandler) RegisterRoutes(rg *gin.RouterGroup) {
 	torrents.POST("/add", h.Add)
 	torrents.GET("/", h.GetUserTorrents)
 	torrents.GET("/:"+infoHashParam+"/:"+creatorPubKeyParam, h.GetByInfoHash)
+	torrents.GET("/file", h.DownloadFile)
 	torrents.POST("/pause", h.PauseTorrent)
 	torrents.POST("/resume", h.ResumeTorrent)
 	torrents.POST("/progress", h.UpdateProgress)
@@ -162,6 +164,46 @@ func (h *TorrentHandler) processProgressUpdate(c *gin.Context, identity models.T
 	}
 	err := h.service.UpdateProgress(c.Request.Context(), req)
 	h.respondEmpty(c, http.StatusOK, err)
+}
+
+func (h *TorrentHandler) DownloadFile(c *gin.Context) {
+	infoHashStr := c.Query(infoHashParam)
+	creatorPubKeyStr := c.Query(creatorPubKeyParam)
+	filePath := c.Query("path")
+
+	if infoHashStr == "" || creatorPubKeyStr == "" || filePath == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "info_hash, creator_pub_key and path query params are required"})
+		return
+	}
+
+	infoHash, err := hex_decoder.DecodeHexParam(infoHashStr)
+	if err != nil {
+		h.fail(c, err)
+		return
+	}
+
+	creatorPubKey, err := base64_decoder.DecodeBase64Param(creatorPubKeyStr)
+	if err != nil {
+		h.fail(c, err)
+		return
+	}
+
+	req := service_ports.DownloadFileServiceRequest{
+		InfoHash:      infoHash,
+		CreatorPubKey: creatorPubKey,
+		FilePath:      filePath,
+	}
+
+	reader, displayPath, err := h.service.DownloadFile(c.Request.Context(), req)
+	if err != nil {
+		h.fail(c, err)
+		return
+	}
+	defer reader.Close()
+
+	c.Header("Content-Type", "application/octet-stream")
+	c.Header("Content-Disposition", "attachment; filename=\""+displayPath+"\"")
+	_, _ = io.Copy(c.Writer, reader)
 }
 
 func (h *TorrentHandler) DeleteTorrent(c *gin.Context) {
