@@ -4,16 +4,23 @@ import { Button, Empty, Spin, message, Upload } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import type { UploadProps } from 'antd';
 import { useStoreTorrents } from '@/hooks/useStoreTorrents.ts';
+import { useAddTorrent } from '@/hooks/useTorrents.ts';
+import { useTorrentState } from '@/hooks/useTorrentState.ts';
 import { useAuth } from '@/AuthContext.tsx';
-import type { StoreTorrent } from '@/types/model/models.ts';
+import type { StoreTorrent, TorrentIdentity } from '@/types/model/models.ts';
+import { torrentService } from '@/api/torrentService.ts';
 import { StoreCard } from './components/StoreCard/StoreCard';
 import styles from './Storefront.module.css';
 
 export const Storefront: React.FC = () => {
     const navigate = useNavigate();
     const { user } = useAuth();
-    const { data, isLoading, error, refetch } = useStoreTorrents();
+    const { data, isLoading, error } = useStoreTorrents();
+    const { mutate: addTorrent, isPending: isAdding } = useAddTorrent();
+    const { startDownload } = useTorrentState();
     const [uploading, setUploading] = useState(false);
+    const [selectedHash, setSelectedHash] = useState<string | null>(null);
+    const [downloadingHash, setDownloadingHash] = useState<string | null>(null);
 
     const handleUpload: UploadProps['customRequest'] = useCallback(async (options) => {
         const file = options.file as File;
@@ -34,11 +41,42 @@ export const Storefront: React.FC = () => {
     }, []);
 
     const handleSelect = useCallback((torrent: StoreTorrent): void => {
-        void refetch();
-        navigate('/dashboard', {
-            state: { storeTorrent: torrent }
+        const identity: TorrentIdentity = {
+            info_hash: torrent.info_hash,
+            creator_pub_key: torrent.creator_public_key
+        };
+
+        setSelectedHash(torrent.info_hash);
+        addTorrent(identity, {
+            onSuccess: (): void => {
+                void message.success(`Added "${torrent.name}" to your torrents`);
+                navigate('/dashboard');
+            },
+            onError: (error: Error): void => {
+                void message.error(`Failed to add "${torrent.name}": ${error.message}`);
+                setSelectedHash(null);
+            }
         });
-    }, [navigate, refetch]);
+    }, [addTorrent, navigate]);
+
+    const handleDownload = useCallback((torrent: StoreTorrent): void => {
+        const identity: TorrentIdentity = {
+            info_hash: torrent.info_hash,
+            creator_pub_key: torrent.creator_public_key
+        };
+
+        setDownloadingHash(torrent.info_hash);
+        torrentService.downloadTorrentFile(identity)
+            .then((torrentFile: Blob): Promise<import('webtorrent').Torrent> => startDownload(torrentFile))
+            .then((): void => {
+                void message.success(`Downloading "${torrent.name}"...`);
+                navigate('/dashboard');
+            })
+            .catch((err: Error): void => {
+                void message.error(`Failed to download "${torrent.name}": ${err.message}`);
+                setDownloadingHash(null);
+            });
+    }, [startDownload, navigate]);
 
     if (isLoading) {
         return (
@@ -92,7 +130,12 @@ export const Storefront: React.FC = () => {
                             key={`${torrent.info_hash}-${torrent.creator_public_key}`}
                             torrent={torrent}
                             isOwn={user?.public_key === torrent.creator_public_key}
+                            isLoading={
+                                (isAdding && selectedHash === torrent.info_hash) ||
+                                downloadingHash === torrent.info_hash
+                            }
                             onSelect={() => handleSelect(torrent)}
+                            onDownload={() => handleDownload(torrent)}
                         />
                     ))}
                 </div>

@@ -15,6 +15,12 @@
     border-color: rgba(255, 255, 255, 0.28);
 }
 
+.cardLoading {
+    opacity: 0.65;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
 .iconContainer {
     display: flex;
     align-items: center;
@@ -86,4 +92,31 @@
     background: rgba(126, 242, 154, 0.15);
     padding: 2px 8px;
     border-radius: 999px;
+}
+
+.downloadBtn {
+    margin-top: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px 12px;
+    border: none;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #4f8cff, #6a5cff);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.downloadBtn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    opacity: 0.9;
+}
+
+.downloadBtn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
