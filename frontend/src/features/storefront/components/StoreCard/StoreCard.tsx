@@ -1,5 +1,5 @@
 import React, { memo, useCallback } from 'react';
-import { DownloadOutlined, UserOutlined } from '@ant-design/icons';
+import { DownloadOutlined, LoadingOutlined, UserOutlined } from '@ant-design/icons';
 import type { StoreTorrent } from '@/types/model/models.ts';
 import { formatBytes } from '@/utils/DashboardScreenUtils/bytesFormatter.ts';
 import styles from './StoreCard.module.css';
@@ -7,7 +7,9 @@ import styles from './StoreCard.module.css';
 interface StoreCardProps {
     torrent: StoreTorrent;
     isOwn: boolean;
+    isLoading?: boolean;
     onSelect: () => void;
+    onDownload: () => void;
 }
 
 const truncateKey = (key: string, chars: number = 16): string => {
@@ -17,15 +19,32 @@ const truncateKey = (key: string, chars: number = 16): string => {
     return `${key.slice(0, chars)}...${key.slice(-6)}`;
 };
 
-const StoreCardComponent: React.FC<StoreCardProps> = ({ torrent, isOwn, onSelect }) => {
+const StoreCardComponent: React.FC<StoreCardProps> = ({ torrent, isOwn, isLoading, onSelect, onDownload }) => {
     const handleClick = useCallback((): void => {
-        onSelect();
-    }, [onSelect]);
+        if (!isLoading) {
+            onSelect();
+        }
+    }, [isLoading, onSelect]);
+
+    const handleDownloadClick = useCallback((e: React.MouseEvent): void => {
+        e.stopPropagation();
+        if (!isLoading) {
+            onDownload();
+        }
+    }, [isLoading, onDownload]);
 
     return (
-        <div className={styles.card} onClick={handleClick} role="button" tabIndex={0}>
+        <div
+            className={`${styles.card}${isLoading ? ` ${styles.cardLoading}` : ''}`}
+            onClick={handleClick}
+            role="button"
+            tabIndex={0}
+            aria-disabled={isLoading}
+        >
             <div className={styles.iconContainer}>
-                <DownloadOutlined className={styles.icon} />
+                {isLoading
+                    ? <LoadingOutlined className={styles.icon} />
+                    : <DownloadOutlined className={styles.icon} />}
             </div>
             <div className={styles.body}>
                 <h3 className={styles.name} title={torrent.name}>
@@ -44,6 +63,14 @@ const StoreCardComponent: React.FC<StoreCardProps> = ({ torrent, isOwn, onSelect
                     </span>
                     {isOwn && <span className={styles.ownBadge}>yours</span>}
                 </div>
+                <button
+                    type="button"
+                    className={styles.downloadBtn}
+                    onClick={handleDownloadClick}
+                    disabled={isLoading}
+                >
+                    <DownloadOutlined /> Download
+                </button>
             </div>
         </div>
     );
