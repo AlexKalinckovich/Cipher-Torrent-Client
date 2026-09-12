@@ -38,3 +38,13 @@ func ToDTO(
 		Signatures:       signatures,
 	}
 }
+
+func ToStoreDTO(row generated.ListAllTorrentsRow) torrentModel.StoreTorrentDTO {
+	return torrentModel.StoreTorrentDTO{
+		InfoHash:         hex.EncodeToString(row.InfoHash),
+		CreatorPublicKey: base64.RawURLEncoding.EncodeToString(row.CreatorPublicKey),
+		Name:             row.Name,
+		SizeBytes:        row.SizeBytes,
+		AddedAt:          row.AddedAt,
+	}
+}

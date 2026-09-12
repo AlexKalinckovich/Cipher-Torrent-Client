@@ -36,7 +36,7 @@ const DEFAULT_ANNOUNCE = [
  *  - expose the torrent files for saving locally (File System Access API)
  */
 export class TorrentClientService {
-    private readonly client: WebTorrent;
+    private readonly client: InstanceType<typeof WebTorrent>;
     private readonly torrents: Map<string, Torrent>;
     private readonly callbacks: Map<string, TorrentClientCallbacks>;
     private readonly announce: string[];

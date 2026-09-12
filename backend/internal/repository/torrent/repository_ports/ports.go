@@ -29,6 +29,7 @@ type TorrentRepositoryPort interface {
 	CreateUserTorrent(ctx context.Context, req CreateUserTorrentRepositoryRequest) error
 	GetTorrentByIdentity(ctx context.Context, req TorrentIdentityRepositoryRequest) (torrentModel.TorrentEntity, error)
 	GetUserTorrents(ctx context.Context, userID int64) ([]torrentModel.TorrentDTO, error)
+	GetAllTorrents(ctx context.Context) ([]torrentModel.StoreTorrentDTO, error)
 	UpdateUserTorrentStatus(ctx context.Context, req UpdateStatusRepositoryRequest) error
 	UpdateUserTorrentProgress(ctx context.Context, req UpdateProgressRepositoryRequest) error
 	DeleteUserTorrent(ctx context.Context, req UserTorrentIdentityRepositoryRequest) error

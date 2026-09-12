@@ -1,16 +1,16 @@
 package torrent_handler
 
 import (
-	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/torrent/service_ports"
-	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/models"
-	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/transport/decoders/base64_decoder"
-	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/transport/decoders/hex_decoder"
-	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/transport/json_binder"
 	"io"
 	"log"
 	"mime/multipart"
 	"net/http"
 
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/torrent/service_ports"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/models"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/transport/decoders/base64_decoder"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/transport/decoders/hex_decoder"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/transport/json_binder"
 	"github.com/gin-gonic/gin"
 )
 
@@ -39,12 +39,18 @@ func (h *TorrentHandler) RegisterRoutes(rg *gin.RouterGroup) {
 	torrents.POST("/create", h.Create)
 	torrents.POST("/add", h.Add)
 	torrents.GET("/", h.GetUserTorrents)
+	torrents.GET("/store", h.GetStore)
 	torrents.GET("/:"+infoHashParam+"/:"+creatorPubKeyParam, h.GetByInfoHash)
 	torrents.GET("/file", h.DownloadFile)
 	torrents.POST("/pause", h.PauseTorrent)
 	torrents.POST("/resume", h.ResumeTorrent)
 	torrents.POST("/progress", h.UpdateProgress)
 	torrents.DELETE("/", h.DeleteTorrent)
+}
+
+func (h *TorrentHandler) GetStore(c *gin.Context) {
+	res, err := h.service.GetStoreTorrents(c.Request.Context())
+	h.respond(c, http.StatusOK, res, err)
 }
 
 func (h *TorrentHandler) Create(c *gin.Context) {
@@ -55,7 +61,6 @@ func (h *TorrentHandler) Create(c *gin.Context) {
 	}
 	defer file.Close()
 	h.buildAndExecuteCreate(c, file)
-
 }
 
 func (h *TorrentHandler) buildAndExecuteCreate(c *gin.Context, file multipart.File) {

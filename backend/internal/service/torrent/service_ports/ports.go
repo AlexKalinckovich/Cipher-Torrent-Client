@@ -25,6 +25,7 @@ type TorrentServicePort interface {
 	Add(ctx context.Context, req AddTorrentServiceRequest) error
 	GetByInfoHash(ctx context.Context, req TorrentIdentityServiceRequest) (torrentModel.TorrentEntity, error)
 	GetUserTorrents(ctx context.Context, userID int64) ([]torrentModel.TorrentDTO, error)
+	GetStoreTorrents(ctx context.Context) ([]torrentModel.StoreTorrentDTO, error)
 	PauseTorrent(ctx context.Context, req TorrentIdentityServiceRequest) error
 	ResumeTorrent(ctx context.Context, req TorrentIdentityServiceRequest) error
 	UpdateProgress(ctx context.Context, req UpdateProgressServiceRequest) error

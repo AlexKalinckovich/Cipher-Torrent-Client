@@ -30,8 +30,8 @@ export const ProfileRecentTorrents: React.FC = () => {
     }, [data]);
 
     const handleOpenAdd = useCallback((): void => {
-        setIsAddModalOpen(true);
-    }, []);
+        navigate('/store');
+    }, [navigate]);
 
     const handleCloseAdd = useCallback((): void => {
         setIsAddModalOpen(false);

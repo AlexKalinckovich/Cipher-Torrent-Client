@@ -2,7 +2,8 @@ import { api } from './axiosClient.ts';
 import type {
     TorrentDTO,
     TorrentEntity,
-    TorrentIdentity
+    TorrentIdentity,
+    StoreTorrent
 } from '../types/model/models.ts';
 
 export class TorrentService {
@@ -48,6 +49,15 @@ export class TorrentService {
             creator_pub_key: identity.creator_pub_key
         });
         const response = await api.get<TorrentEntity>(`/torrents/info?${params.toString()}`);
+        return response.data;
+    }
+
+    /**
+     * GET /torrents/store
+     * Fetches all published torrents (name + creator public key) for the storefront.
+     */
+    public async getStoreTorrents(): Promise<StoreTorrent[]> {
+        const response = await api.get<StoreTorrent[]>('/torrents/store');
         return response.data;
     }
 

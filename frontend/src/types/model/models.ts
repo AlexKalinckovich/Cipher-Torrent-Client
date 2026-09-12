@@ -19,6 +19,7 @@ export * from './Reputation/reputationUpdateEvent';
 
 // Torrent folder
 export * from './Torrent/signatureCreateResponse';
+export * from './Torrent/storeTorrent';
 export * from './Torrent/torrentEntity.ts';
 export * from './Torrent/torrentAddRequest';
 export * from './Torrent/torrentAddResponse';

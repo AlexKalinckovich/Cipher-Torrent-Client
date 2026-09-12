@@ -1,0 +1,69 @@
+.pageContainer {
+    position: relative;
+    min-height: 100vh;
+    padding: 40px 48px;
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 60%, #0f172a 100%);
+    color: #f0f4ff;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.backgroundBlob1,
+.backgroundBlob2 {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(90px);
+    z-index: 0;
+    pointer-events: none;
+}
+
+.backgroundBlob1 {
+    width: 420px;
+    height: 420px;
+    background: rgba(79, 140, 255, 0.18);
+    top: -120px;
+    right: -100px;
+}
+
+.backgroundBlob2 {
+    width: 360px;
+    height: 360px;
+    background: rgba(126, 242, 154, 0.10);
+    bottom: -120px;
+    left: -80px;
+}
+
+.header {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 32px;
+}
+
+.title {
+    margin: 0;
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+}
+
+.grid {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 20px;
+}
+
+.emptyState {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    min-height: 300px;
+}
