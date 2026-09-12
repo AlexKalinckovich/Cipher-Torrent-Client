@@ -26,19 +26,32 @@ export const Storefront: React.FC = () => {
         const file = options.file as File;
         setUploading(true);
         try {
-            // Currently the "Upload your torrent" flow is a placeholder that
-            // navigates to the dashboard for now, or here we could POST the
-            // file via torrentService.createTorrent(file).
-            void message.info(`Received file: ${file.name} — upload flow to be wired up`);
+            // 1. Upload the user's own .torrent file -> creates the torrent and
+            //    returns its info_hash (backend sets the user as creator).
+            const created = await torrentService.createTorrent(file);
+
+            // 2. Register the torrent to the user's library via /add, using the
+            //    client's own creator public key and the uploaded torrent's infohash.
+            const identity: TorrentIdentity = {
+                info_hash: created.info_hash,
+                creator_pub_key: user?.public_key ?? created.creator_public_key
+            };
+
+            addTorrent(identity, {
+                onSuccess: (): void => {
+                    void message.success(`Published "${created.name}" to the store`);
+                    navigate('/dashboard');
+                },
+                onError: (error: Error): void => {
+                    void message.error(`Failed to add "${created.name}": ${error.message}`);
+                }
+            });
+        } catch (err) {
+            void message.error(`Failed to upload torrent: ${err instanceof Error ? err.message : String(err)}`);
         } finally {
             setUploading(false);
         }
-    }, []);
-
-    const handleAddOwnTorrent = useCallback((): void => {
-        // Placeholder: "+" button that will prompt to upload the user's own torrent file.
-        void message.info('Choose a .torrent file to publish it to the store');
-    }, []);
+    }, [user?.public_key, addTorrent, navigate]);
 
     const handleSelect = useCallback((torrent: StoreTorrent): void => {
         const identity: TorrentIdentity = {
@@ -112,7 +125,6 @@ export const Storefront: React.FC = () => {
                         type="primary"
                         icon={<PlusOutlined />}
                         loading={uploading}
-                        onClick={handleAddOwnTorrent}
                     >
                         Upload your torrent
                     </Button>
