@@ -80,12 +80,16 @@ export class TorrentService {
     }
 
     /**
-     * POST /torrents/download
-     * Fetches only the signed .torrent METADATA (small descriptor), NOT content.
+     * GET /torrents/file?info_hash=...&creator_pub_key=...
+     * Fetches the .torrent file (metadata descriptor) from MinIO, NOT content.
      * The client feeds these bytes to WebTorrent to download actual data in-browser.
      */
     public async downloadTorrentFile(identity: TorrentIdentity): Promise<Blob> {
-        const response = await api.post<Blob>('/torrents/download', identity, {
+        const params = new URLSearchParams({
+            info_hash: identity.info_hash,
+            creator_pub_key: identity.creator_pub_key
+        });
+        const response = await api.get<Blob>(`/torrents/file?${params.toString()}`, {
             responseType: 'blob'
         });
         return response.data;

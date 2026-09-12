@@ -1,4 +1,5 @@
 import WebTorrent, { type Torrent, type TorrentFile, type TorrentOptions } from './webtorrent';
+import parseTorrent, { type Instance as ParsedTorrent } from 'parse-torrent';
 import { attachTorrentPacketListener, type WirePacketListener } from './torrentPacketCapture';
 
 export interface TorrentProgressSnapshot {
@@ -84,17 +85,49 @@ export class TorrentClientService {
     }
 
     /**
+     * Convert a File/Blob into a raw byte buffer (parse-torrent reads Uint8Array).
+     */
+    private async toBytes(input: File | Blob): Promise<Uint8Array> {
+        return new Uint8Array(await input.arrayBuffer());
+    }
+
+    /**
+     * Normalize any supported input into a parsed local torrent model
+     * (a `parse-torrent` Instance with infoHash/announce/files/pieces).
+     *
+     * Parsing the raw blob up-front avoids handing WebTorrent an opaque Blob,
+     * which caused broken torrent-ids and runtime errors. The parsed model is
+     * then fed to `client.add`, which accepts it natively.
+     */
+    private async normalizeTorrentId(
+        torrentId: string | Uint8Array | File | Blob,
+    ): Promise<string | Uint8Array | ParsedTorrent> {
+        if (typeof torrentId === 'string') {
+            return torrentId;
+        }
+        if (torrentId instanceof Uint8Array) {
+            return torrentId;
+        }
+        if (torrentId instanceof Blob) {
+            const bytes = await this.toBytes(torrentId);
+            return parseTorrent(bytes);
+        }
+        return torrentId;
+    }
+
+    /**
      * Add a torrent from a magnet URI, a raw .torrent byte buffer,
      * a File/Blob, or an already-parsed torrent instance.
      */
-    public add(
+    public async add(
         torrentId: string | Uint8Array | File | Blob,
         callbacks?: TorrentClientCallbacks,
     ): Promise<Torrent> {
+        const normalized = await this.normalizeTorrentId(torrentId);
         return new Promise<Torrent>((resolve, reject) => {
             const opts: TorrentOptions = { announce: this.announce };
 
-            const t = this.client.add(torrentId, opts, (added: Torrent) => {
+            const t = this.client.add(normalized, opts, (added: Torrent) => {
                 this.bindTorrent(added);
                 if (callbacks) {
                     this.callbacks.set(added.infoHash, callbacks);
