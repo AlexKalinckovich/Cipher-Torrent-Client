@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/custom_errors/torrent_errors"
-	"io"
 	"log"
 	"time"
 
@@ -173,26 +172,6 @@ func (e *AnacrolixEngine) addTorrent(infoBytes []byte) (*torrent.Torrent, error)
 
 	mi := &metainfo.MetaInfo{InfoBytes: infoBytes}
 	return e.client.AddTorrent(mi)
-}
-
-// DownloadFile resolves a file inside the torrent by its display path (the same path
-// exposed in TorrentDTO.Files[].Path) and returns a streamable reader for it.
-// The returned display path is the relative path used when saving on the client.
-func (e *AnacrolixEngine) DownloadFile(infoBytes []byte, filePath string) (io.ReadCloser, string, error) {
-	t, err := e.addTorrent(infoBytes)
-	if err != nil {
-		return nil, "", err
-	}
-
-	<-t.GotInfo()
-
-	for _, f := range t.Files() {
-		if f.DisplayPath() == filePath {
-			return f.NewReader(), f.DisplayPath(), nil
-		}
-	}
-
-	return nil, "", torrent_errors.NewTorrentFileNotFoundError(filePath)
 }
 
 func (e *AnacrolixEngine) activateTorrent(t *torrent.Torrent) (string, error) {

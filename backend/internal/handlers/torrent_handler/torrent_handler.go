@@ -1,7 +1,6 @@
 package torrent_handler
 
 import (
-	"io"
 	"log"
 	"mime/multipart"
 	"net/http"
@@ -174,10 +173,9 @@ func (h *TorrentHandler) processProgressUpdate(c *gin.Context, identity models.T
 func (h *TorrentHandler) DownloadFile(c *gin.Context) {
 	infoHashStr := c.Query(infoHashParam)
 	creatorPubKeyStr := c.Query(creatorPubKeyParam)
-	filePath := c.Query("path")
 
-	if infoHashStr == "" || creatorPubKeyStr == "" || filePath == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "info_hash, creator_pub_key and path query params are required"})
+	if infoHashStr == "" || creatorPubKeyStr == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "info_hash and creator_pub_key query params are required"})
 		return
 	}
 
@@ -196,19 +194,17 @@ func (h *TorrentHandler) DownloadFile(c *gin.Context) {
 	req := service_ports.DownloadFileServiceRequest{
 		InfoHash:      infoHash,
 		CreatorPubKey: creatorPubKey,
-		FilePath:      filePath,
 	}
 
-	reader, displayPath, err := h.service.DownloadFile(c.Request.Context(), req)
+	fileBytes, err := h.service.DownloadFile(c.Request.Context(), req)
 	if err != nil {
 		h.fail(c, err)
 		return
 	}
-	defer reader.Close()
 
-	c.Header("Content-Type", "application/octet-stream")
-	c.Header("Content-Disposition", "attachment; filename=\""+displayPath+"\"")
-	_, _ = io.Copy(c.Writer, reader)
+	c.Header("Content-Type", "application/x-bittorrent")
+	c.Header("Content-Disposition", "attachment; filename=\""+infoHashStr+".torrent\"")
+	c.Data(http.StatusOK, "application/x-bittorrent", fileBytes)
 }
 
 func (h *TorrentHandler) DeleteTorrent(c *gin.Context) {
