@@ -27,6 +27,16 @@ type TorrentDTO struct {
 	Signatures       []SignatureDTO `json:"signatures"`
 }
 
+// StoreTorrentDTO is a lightweight descriptor of a published torrent shown in the
+// storefront: identity + metadata only, no user-specific status/progress.
+type StoreTorrentDTO struct {
+	InfoHash         string    `json:"info_hash"`
+	CreatorPublicKey string    `json:"creator_public_key"`
+	Name             string    `json:"name"`
+	SizeBytes        int64     `json:"size_bytes"`
+	AddedAt          time.Time `json:"added_at"`
+}
+
 type FileDTO struct {
 	Path      string `json:"path"`
 	SizeBytes int64  `json:"size_bytes"`

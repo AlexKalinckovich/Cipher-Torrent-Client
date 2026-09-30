@@ -26,6 +26,7 @@ export * from './Torrent/torrentFile';
 export * from './Torrent/torrentProgressEvent';
 export * from './Torrent/torrentSignature';
 export * from './Torrent/torrentSignedEvent';
+export * from './Torrent/storeTorrent';
 
 // User folder
 export * from './User/user';

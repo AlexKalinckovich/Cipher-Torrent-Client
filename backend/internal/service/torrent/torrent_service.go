@@ -153,6 +153,10 @@ func (s *Service) GetUserTorrents(ctx context.Context, userID int64) ([]torrentM
 	return s.repository.GetUserTorrents(ctx, userID)
 }
 
+func (s *Service) GetStoreTorrents(ctx context.Context) ([]torrentModel.StoreTorrentDTO, error) {
+	return s.repository.GetAllTorrents(ctx)
+}
+
 func (s *Service) PauseTorrent(ctx context.Context, req service_ports.TorrentIdentityServiceRequest) error {
 	if err := s.engine.PauseTorrent(req.InfoHash); err != nil {
 		return err

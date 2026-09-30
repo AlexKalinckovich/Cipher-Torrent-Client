@@ -38,6 +38,7 @@ func (h *TorrentHandler) RegisterRoutes(rg *gin.RouterGroup) {
 	torrents.POST("/create", h.Create)
 	torrents.POST("/add", h.Add)
 	torrents.GET("/", h.GetUserTorrents)
+	torrents.GET("/store", h.GetStore)
 	torrents.GET("/:"+infoHashParam+"/:"+creatorPubKeyParam, h.GetByInfoHash)
 	torrents.POST("/pause", h.PauseTorrent)
 	torrents.POST("/resume", h.ResumeTorrent)
@@ -94,6 +95,11 @@ func (h *TorrentHandler) executeAdd(c *gin.Context, identity models.TorrentIdent
 func (h *TorrentHandler) GetUserTorrents(c *gin.Context) {
 	userID := h.extractUserID(c)
 	res, err := h.service.GetUserTorrents(c.Request.Context(), userID)
+	h.respond(c, http.StatusOK, res, err)
+}
+
+func (h *TorrentHandler) GetStore(c *gin.Context) {
+	res, err := h.service.GetStoreTorrents(c.Request.Context())
 	h.respond(c, http.StatusOK, res, err)
 }
 

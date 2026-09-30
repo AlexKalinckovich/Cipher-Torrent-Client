@@ -36,6 +36,16 @@ FROM v_torrent_with_signatures v
                   AND v.creator_public_key = ut.creator_public_key
 WHERE ut.user_id = ?;
 
+-- name: GetAllTorrents :many
+SELECT
+    info_hash,
+    creator_public_key,
+    name,
+    size_bytes,
+    added_at
+FROM torrents
+ORDER BY added_at DESC;
+
 -- name: UpdateUserTorrentStatus :exec
 UPDATE user_torrents
 SET status = ?

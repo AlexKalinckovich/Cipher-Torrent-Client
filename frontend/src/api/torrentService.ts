@@ -3,7 +3,8 @@ import type {
     TorrentDTO,
     TorrentEntity,
     TorrentIdentity,
-    ProgressUpdateRequest
+    ProgressUpdateRequest,
+    StoreTorrent
 } from '../types/model/models.ts'; // Adjust import path to your models file
 
 export class TorrentService {
@@ -92,6 +93,15 @@ export class TorrentService {
      */
     public async signTorrent(identity: TorrentIdentity): Promise<TorrentDTO> {
         const response = await api.post<TorrentDTO>('/torrents/sign', identity);
+        return response.data;
+    }
+
+    /**
+     * GET /torrents/store
+     * Fetches all published torrents (name + creator public key) for the storefront.
+     */
+    public async getStoreTorrents(): Promise<StoreTorrent[]> {
+        const response = await api.get<StoreTorrent[]>('/torrents/store');
         return response.data;
     }
 }

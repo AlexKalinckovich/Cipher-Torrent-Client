@@ -75,6 +75,18 @@ func (r *TorrentRepository) GetUserTorrents(ctx context.Context, userID int64) (
 	return r.aggregateRowsToDTOs(rows), nil
 }
 
+func (r *TorrentRepository) GetAllTorrents(ctx context.Context) ([]torrentModel.StoreTorrentDTO, error) {
+	rows, err := r.queries.GetAllTorrents(ctx)
+	if translatedErr := r.translator.TranslateTorrentError(err); translatedErr != nil {
+		return nil, translatedErr
+	}
+	dtos := make([]torrentModel.StoreTorrentDTO, 0, len(rows))
+	for _, row := range rows {
+		dtos = append(dtos, torrentMapper.ToStoreDTO(row))
+	}
+	return dtos, nil
+}
+
 func (r *TorrentRepository) aggregateRowsToDTOs(rows []generated.GetUserTorrentsRow) []torrentModel.TorrentDTO {
 
 	type torrentKey string
