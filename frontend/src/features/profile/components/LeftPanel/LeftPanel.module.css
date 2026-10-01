@@ -105,3 +105,27 @@
 .keyIcon:hover {
     color: #fff;
 }
+
+.storeButton {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 12px;
+    padding: 16px 20px;
+    border: 1px solid rgba(124, 58, 237, 0.4);
+    border-radius: 14px;
+    background: linear-gradient(135deg, rgba(124, 58, 237, 0.25), rgba(192, 132, 252, 0.15));
+    color: #e9d5ff;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.25s ease;
+}
+
+.storeButton:hover {
+    border-color: #c084fc;
+    box-shadow: 0 0 20px rgba(124, 58, 237, 0.4);
+    transform: translateY(-2px);
+}

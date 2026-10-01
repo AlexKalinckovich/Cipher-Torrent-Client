@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { Button, Tooltip } from 'antd';
 import { DownloadOutlined, UserOutlined } from '@ant-design/icons';
 import type { StoreTorrent } from '@/types/model/models.ts';
@@ -18,7 +18,7 @@ const truncateKey = (key: string, len = 16): string => {
     return `${key.slice(0, len / 2)}…${key.slice(-len / 2)}`;
 };
 
-export const StoreCard: React.FC<StoreCardProps> = ({ torrent, isOwn, isLoading, onDownload }) => {
+export const StoreCard: React.FC<StoreCardProps> = memo(function StoreCard({ torrent, isOwn, isLoading, onDownload }) {
     return (
         <div className={styles.card}>
             <div className={styles.cardHeader}>
@@ -51,7 +51,7 @@ export const StoreCard: React.FC<StoreCardProps> = ({ torrent, isOwn, isLoading,
             </Button>
         </div>
     );
-};
+});
 
 const formatBytes = (bytes: number): string => {
     if (bytes === 0) {

@@ -1,6 +1,6 @@
-import React from 'react';
-import { Button, Empty, Spin, message } from 'antd';
-import { ArrowLeftOutlined } from '@ant-design/icons';
+import React, { useMemo, useState, useDeferredValue, useCallback } from 'react';
+import { Button, Empty, Spin, message, Input } from 'antd';
+import { ArrowLeftOutlined, SearchOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useStoreTorrents } from '@/hooks/useStoreTorrents.ts';
 import { useAuth } from '@/AuthContext.tsx';
@@ -9,6 +9,12 @@ import { useAddTorrent } from '@/hooks/useTorrents.ts';
 import { StoreCard } from './components/StoreCard/StoreCard';
 import styles from './Storefront.module.css';
 
+interface PreparedTorrent {
+    torrent: StoreTorrent;
+    searchText: string; // precomputed lowercase searchable text
+    isOwn: boolean;
+}
+
 export const Storefront: React.FC = () => {
     const navigate = useNavigate();
     const { user } = useAuth();
@@ -16,9 +22,31 @@ export const Storefront: React.FC = () => {
     const { mutate: addTorrent, isPending: isAdding } = useAddTorrent();
     const [downloadingHash, setDownloadingHash] = React.useState<string | null>(null);
 
-    // Download = add the torrent to the current user's library.
-    // The backend (Anacrolix engine) downloads the actual content server-side.
-    const handleDownload = (torrent: StoreTorrent): void => {
+    // Search state: input is urgent, list renders from the deferred value.
+    const [query, setQuery] = useState('');
+    const deferredQuery = useDeferredValue(query);
+    const isStale = query !== deferredQuery;
+
+    // Precompute searchable text ONCE when data loads (cheap per render afterward).
+    const prepared = useMemo<PreparedTorrent[]>(() => {
+        const items = data ?? [];
+        return items.map((torrent) => ({
+            torrent,
+            searchText: `${torrent.name} ${torrent.creator_public_key}`.toLowerCase(),
+            isOwn: user?.public_key === torrent.creator_public_key,
+        }));
+    }, [data, user?.public_key]);
+
+    // Filtering runs against the DEFERRED query -> interruptible, doesn't block typing.
+    const results = useMemo<PreparedTorrent[]>(() => {
+        const q = deferredQuery.trim().toLowerCase();
+        if (!q) {
+            return prepared;
+        }
+        return prepared.filter((it) => it.searchText.includes(q));
+    }, [prepared, deferredQuery]);
+
+    const handleDownload = useCallback((torrent: StoreTorrent): void => {
         const identity: TorrentIdentity = {
             info_hash: torrent.info_hash,
             creator_pub_key: torrent.creator_public_key,
@@ -35,7 +63,7 @@ export const Storefront: React.FC = () => {
                 setDownloadingHash(null);
             },
         });
-    };
+    }, [addTorrent, navigate]);
 
     if (isLoading) {
         return (
@@ -53,8 +81,6 @@ export const Storefront: React.FC = () => {
         );
     }
 
-    const torrents: StoreTorrent[] = data ?? [];
-
     return (
         <div className={styles.pageContainer}>
             <div className={styles.backgroundBlob1} />
@@ -71,22 +97,41 @@ export const Storefront: React.FC = () => {
                 <h1 className={styles.title}>Torrent Storefront</h1>
             </div>
 
-            {torrents.length === 0 ? (
+            <div className={styles.searchBar}>
+                <Input
+                    allowClear
+                    size="large"
+                    prefix={<SearchOutlined />}
+                    placeholder="Search by torrent name or creator public key…"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                />
+                {isStale && <span className={styles.searchHint}>Filtering…</span>}
+            </div>
+
+            {prepared.length === 0 ? (
                 <div className={styles.emptyState}>
                     <Empty description="No torrents published yet" />
                 </div>
+            ) : results.length === 0 ? (
+                <div className={styles.emptyState}>
+                    <Empty description={`No torrents match "${query}"`} />
+                </div>
             ) : (
-                <div className={styles.grid}>
-                    {torrents.map((torrent) => (
+                <div
+                    className={styles.grid}
+                    style={{ opacity: isStale ? 0.6 : 1, transition: 'opacity 150ms' }}
+                >
+                    {results.map((item) => (
                         <StoreCard
-                            key={`${torrent.info_hash}-${torrent.creator_public_key}`}
-                            torrent={torrent}
-                            isOwn={user?.public_key === torrent.creator_public_key}
+                            key={`${item.torrent.info_hash}-${item.torrent.creator_public_key}`}
+                            torrent={item.torrent}
+                            isOwn={item.isOwn}
                             isLoading={
-                                (isAdding && downloadingHash === torrent.info_hash) ||
-                                downloadingHash === torrent.info_hash
+                                (isAdding && downloadingHash === item.torrent.info_hash) ||
+                                downloadingHash === item.torrent.info_hash
                             }
-                            onDownload={() => handleDownload(torrent)}
+                            onDownload={() => handleDownload(item.torrent)}
                         />
                     ))}
                 </div>
