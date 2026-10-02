@@ -80,11 +80,21 @@ export class TorrentService {
 
     /**
      * DELETE /torrents/
-     * Deletes a torrent from storage and database (JSON body).
+     * Removes a torrent from the CURRENT user's library only (JSON body).
+     * Does NOT delete the shared MinIO object.
      * Note: Axios requires the `data` property to send a body in a DELETE request.
      */
     public async deleteTorrent(identity: TorrentIdentity): Promise<void> {
         await api.delete('/torrents/', { data: identity });
+    }
+
+    /**
+     * DELETE /torrents/published
+     * Deletes a published torrent from the store entirely: MinIO object + DB row
+     * (cascades to all users' libraries).
+     */
+    public async deletePublishedTorrent(identity: TorrentIdentity): Promise<void> {
+        await api.delete('/torrents/published', { data: identity });
     }
 
     /**

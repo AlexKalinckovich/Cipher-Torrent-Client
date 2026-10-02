@@ -25,7 +25,7 @@ func main() {
 	engine := setupHTTPServer()
 
 	corsConfig := cors.DefaultConfig()
-	corsConfig.AllowOrigins = []string{"http://localhost:5174", "http://localhost:3000"}
+	corsConfig.AllowOrigins = []string{"http://localhost:5173", "http://localhost:3000"}
 	corsConfig.AllowMethods = []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"}
 	corsConfig.AllowHeaders = []string{"Origin", "Content-Type", "Accept", "Authorization"}
 	corsConfig.AllowCredentials = true

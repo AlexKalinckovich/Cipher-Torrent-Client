@@ -176,3 +176,12 @@ func (r *TorrentRepository) DeleteUserTorrent(ctx context.Context, req repositor
 	_, err := r.queries.DeleteUserTorrent(ctx, params)
 	return r.translator.TranslateTorrentError(err)
 }
+
+func (r *TorrentRepository) DeleteTorrentByIdentity(ctx context.Context, req repository_port.TorrentIdentityRepositoryRequest) error {
+	params := generated.DeleteTorrentByIdentityParams{
+		InfoHash:         req.InfoHash,
+		CreatorPublicKey: req.CreatorPubKey,
+	}
+	_, err := r.queries.DeleteTorrentByIdentity(ctx, params)
+	return r.translator.TranslateTorrentError(err)
+}

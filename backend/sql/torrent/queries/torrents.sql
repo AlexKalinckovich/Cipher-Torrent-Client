@@ -59,3 +59,7 @@ WHERE user_id = ? AND torrent_info_hash = ? AND creator_public_key = ?;
 -- name: DeleteUserTorrent :execresult
 DELETE FROM user_torrents
 WHERE user_id = ? AND torrent_info_hash = ? AND creator_public_key = ?;
+
+-- name: DeleteTorrentByIdentity :execresult
+DELETE FROM torrents
+WHERE info_hash = ? AND creator_public_key = ?;

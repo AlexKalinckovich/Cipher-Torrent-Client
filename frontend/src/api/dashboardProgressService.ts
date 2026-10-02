@@ -7,6 +7,7 @@ class DashboardProgressService {
     private ws: WebSocket | null = null;
     private subscribers = new Set<ProgressCallback>();
     private reconnectTimeout: number | null = null;
+    private disconnectTimeout: number | null = null;
     private intentionallyClosed = false;
 
     public connect(): void {
@@ -47,6 +48,13 @@ class DashboardProgressService {
     }
 
     public subscribe(callback: ProgressCallback): () => void {
+        // A new subscriber cancels any pending teardown (handles React StrictMode's
+        // subscribe->unsubscribe->subscribe burst on the same tick).
+        if (this.disconnectTimeout) {
+            clearTimeout(this.disconnectTimeout);
+            this.disconnectTimeout = null;
+        }
+
         this.subscribers.add(callback);
         if (!this.ws || this.ws.readyState === WebSocket.CLOSED) {
             this.connect();
@@ -54,9 +62,18 @@ class DashboardProgressService {
         return () => {
             this.subscribers.delete(callback);
             if (this.subscribers.size === 0) {
-                this.disconnect();
+                // Defer teardown so a rapid re-subscribe (StrictMode) keeps the socket alive.
+                this.scheduleDisconnect();
             }
         };
+    }
+
+    private scheduleDisconnect(): void {
+        if (this.disconnectTimeout) return;
+        this.disconnectTimeout = window.setTimeout(() => {
+            this.disconnectTimeout = null;
+            this.disconnect();
+        }, 1000);
     }
 
     private scheduleReconnect(): void {
@@ -72,6 +89,10 @@ class DashboardProgressService {
         if (this.reconnectTimeout) {
             clearTimeout(this.reconnectTimeout);
             this.reconnectTimeout = null;
+        }
+        if (this.disconnectTimeout) {
+            clearTimeout(this.disconnectTimeout);
+            this.disconnectTimeout = null;
         }
         this.ws?.close();
         this.ws = null;

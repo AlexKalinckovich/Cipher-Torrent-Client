@@ -10,6 +10,16 @@ export const useTorrents = (): UseQueryResult<TorrentDTO[], Error> => {
     });
 };
 
+export const useCreateTorrent = (): UseMutationResult<TorrentDTO, Error, File> => {
+    const queryClient = useQueryClient();
+    return useMutation<TorrentDTO, Error, File>({
+        mutationFn: (file: File): Promise<TorrentDTO> => torrentService.createTorrent(file),
+        onSuccess: (): void => {
+            void queryClient.invalidateQueries({ queryKey: ['torrents'] });
+        }
+    });
+};
+
 export const useAddTorrent = (): UseMutationResult<void, Error, TorrentIdentity> => {
     const queryClient = useQueryClient();
     return useMutation<void, Error, TorrentIdentity>({
@@ -65,6 +75,19 @@ export const useDeleteTorrent = (): UseMutationResult<void, Error, TorrentIdenti
             return torrentService.deleteTorrent(identity);
         },
         onSuccess: (): void => {
+            void queryClient.invalidateQueries({ queryKey: ['torrents'] });
+        }
+    });
+};
+
+export const useDeletePublishedTorrent = (): UseMutationResult<void, Error, TorrentIdentity> => {
+    const queryClient = useQueryClient();
+    return useMutation<void, Error, TorrentIdentity>({
+        mutationFn: (identity: TorrentIdentity): Promise<void> => {
+            return torrentService.deletePublishedTorrent(identity);
+        },
+        onSuccess: (): void => {
+            void queryClient.invalidateQueries({ queryKey: ['store-torrents'] });
             void queryClient.invalidateQueries({ queryKey: ['torrents'] });
         }
     });

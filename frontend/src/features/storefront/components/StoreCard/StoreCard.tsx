@@ -1,6 +1,6 @@
 import React, { memo } from 'react';
 import { Button, Tooltip } from 'antd';
-import { DownloadOutlined, UserOutlined } from '@ant-design/icons';
+import { DeleteOutlined, DownloadOutlined, UserOutlined } from '@ant-design/icons';
 import type { StoreTorrent } from '@/types/model/models.ts';
 import styles from './StoreCard.module.css';
 
@@ -8,7 +8,9 @@ interface StoreCardProps {
     torrent: StoreTorrent;
     isOwn: boolean;
     isLoading: boolean;
+    isDeleting: boolean;
     onDownload: () => void;
+    onDelete: () => void;
 }
 
 const truncateKey = (key: string, len = 16): string => {
@@ -18,7 +20,14 @@ const truncateKey = (key: string, len = 16): string => {
     return `${key.slice(0, len / 2)}…${key.slice(-len / 2)}`;
 };
 
-export const StoreCard: React.FC<StoreCardProps> = memo(function StoreCard({ torrent, isOwn, isLoading, onDownload }) {
+export const StoreCard: React.FC<StoreCardProps> = memo(function StoreCard({
+    torrent,
+    isOwn,
+    isLoading,
+    isDeleting,
+    onDownload,
+    onDelete,
+}) {
     return (
         <div className={styles.card}>
             <div className={styles.cardHeader}>
@@ -40,15 +49,38 @@ export const StoreCard: React.FC<StoreCardProps> = memo(function StoreCard({ tor
                 <span>{new Date(torrent.added_at).toLocaleDateString()}</span>
             </div>
 
-            <Button
-                type="primary"
-                icon={<DownloadOutlined />}
-                loading={isLoading}
-                block
-                onClick={onDownload}
-            >
-                Download
-            </Button>
+            {isOwn ? (
+                <div className={styles.buttonRow}>
+                    <Button
+                        type="primary"
+                        icon={<DownloadOutlined />}
+                        loading={isLoading}
+                        block
+                        onClick={onDownload}
+                    >
+                        Download
+                    </Button>
+                    <Button
+                        danger
+                        icon={<DeleteOutlined />}
+                        loading={isDeleting}
+                        block
+                        onClick={onDelete}
+                    >
+                        Delete
+                    </Button>
+                </div>
+            ) : (
+                <Button
+                    type="primary"
+                    icon={<DownloadOutlined />}
+                    loading={isLoading}
+                    block
+                    onClick={onDownload}
+                >
+                    Download
+                </Button>
+            )}
         </div>
     );
 });

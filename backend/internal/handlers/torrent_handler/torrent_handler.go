@@ -44,6 +44,7 @@ func (h *TorrentHandler) RegisterRoutes(rg *gin.RouterGroup) {
 	torrents.POST("/resume", h.ResumeTorrent)
 	torrents.POST("/progress", h.UpdateProgress)
 	torrents.DELETE("/", h.DeleteTorrent)
+	torrents.DELETE("/published", h.DeletePublishedTorrent)
 }
 
 func (h *TorrentHandler) Create(c *gin.Context) {
@@ -177,6 +178,16 @@ func (h *TorrentHandler) DeleteTorrent(c *gin.Context) {
 		return
 	}
 	err = h.service.DeleteTorrent(c.Request.Context(), userIdentity)
+	h.respondEmpty(c, http.StatusOK, err)
+}
+
+func (h *TorrentHandler) DeletePublishedTorrent(c *gin.Context) {
+	userIdentity, err := h.extractUserTorrentIdentity(c)
+	if err != nil {
+		h.fail(c, err)
+		return
+	}
+	err = h.service.DeletePublishedTorrent(c.Request.Context(), userIdentity)
 	h.respondEmpty(c, http.StatusOK, err)
 }
 

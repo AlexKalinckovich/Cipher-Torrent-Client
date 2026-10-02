@@ -68,3 +68,9 @@
     font-size: 13px;
     color: #a0a0b0;
 }
+
+.buttonRow {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+}

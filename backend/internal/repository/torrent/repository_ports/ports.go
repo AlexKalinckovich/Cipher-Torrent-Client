@@ -33,4 +33,5 @@ type TorrentRepositoryPort interface {
 	UpdateUserTorrentStatus(ctx context.Context, req UpdateStatusRepositoryRequest) error
 	UpdateUserTorrentProgress(ctx context.Context, req UpdateProgressRepositoryRequest) error
 	DeleteUserTorrent(ctx context.Context, req UserTorrentIdentityRepositoryRequest) error
+	DeleteTorrentByIdentity(ctx context.Context, req TorrentIdentityRepositoryRequest) error
 }

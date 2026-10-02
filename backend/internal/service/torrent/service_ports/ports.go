@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/models"
 	torrentModel "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/model/torrent"
+	"github.com/anacrolix/torrent/metainfo"
 	"mime/multipart"
 )
 
@@ -23,12 +24,13 @@ type TorrentServicePort interface {
 	ResumeTorrent(ctx context.Context, req TorrentIdentityServiceRequest) error
 	UpdateProgress(ctx context.Context, req UpdateProgressServiceRequest) error
 	DeleteTorrent(ctx context.Context, req TorrentIdentityServiceRequest) error
+	DeletePublishedTorrent(ctx context.Context, req TorrentIdentityServiceRequest) error
 }
 
 type TorrentEngine interface {
-	StartDownload(infoBytes []byte, key []byte) (string, error)
+	StartDownload(mi *metainfo.MetaInfo, key []byte) (string, error)
 	PauseTorrent(infoHash []byte) error
-	ResumeTorrent(infoBytes []byte, key []byte) error
+	ResumeTorrent(mi *metainfo.MetaInfo, key []byte) error
 }
 
 type TorrentValidatorPort interface {

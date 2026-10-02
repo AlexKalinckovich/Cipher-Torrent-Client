@@ -1,6 +1,7 @@
 package meta_info
 
 import (
+	"encoding/base64"
 	"encoding/hex"
 	"path/filepath"
 	"time"
@@ -25,14 +26,23 @@ func (m *MetainfoMapper) ToEntity(mi *metainfo.MetaInfo) (torrentModel.TorrentEn
 }
 
 func (m *MetainfoMapper) ToDTO(entity torrentModel.TorrentEntity, status torrentModel.TorrentStatus, progress float32) torrentModel.TorrentDTO {
+	return m.buildDTO(entity, "", status, progress)
+}
+
+func (m *MetainfoMapper) ToDTOWithCreator(entity torrentModel.TorrentEntity, creatorPubKey []byte, status torrentModel.TorrentStatus, progress float32) torrentModel.TorrentDTO {
+	return m.buildDTO(entity, base64.RawURLEncoding.EncodeToString(creatorPubKey), status, progress)
+}
+
+func (m *MetainfoMapper) buildDTO(entity torrentModel.TorrentEntity, creatorPubKey string, status torrentModel.TorrentStatus, progress float32) torrentModel.TorrentDTO {
 	return torrentModel.TorrentDTO{
-		InfoHash:    hex.EncodeToString(entity.InfoHash),
-		Name:        entity.Name,
-		SizeBytes:   entity.SizeBytes,
-		StoragePath: entity.StoragePath,
-		Status:      status,
-		Progress:    progress,
-		AddedAt:     entity.AddedAt,
+		InfoHash:         hex.EncodeToString(entity.InfoHash),
+		CreatorPublicKey: creatorPubKey,
+		Name:             entity.Name,
+		SizeBytes:        entity.SizeBytes,
+		StoragePath:      entity.StoragePath,
+		Status:           status,
+		Progress:         progress,
+		AddedAt:          entity.AddedAt,
 	}
 }
 
