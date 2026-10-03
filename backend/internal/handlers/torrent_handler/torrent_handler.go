@@ -38,11 +38,13 @@ func (h *TorrentHandler) RegisterRoutes(rg *gin.RouterGroup) {
 	torrents.POST("/create", h.Create)
 	torrents.POST("/add", h.Add)
 	torrents.GET("/", h.GetUserTorrents)
+	torrents.GET("/store", h.GetStore)
 	torrents.GET("/:"+infoHashParam+"/:"+creatorPubKeyParam, h.GetByInfoHash)
 	torrents.POST("/pause", h.PauseTorrent)
 	torrents.POST("/resume", h.ResumeTorrent)
 	torrents.POST("/progress", h.UpdateProgress)
 	torrents.DELETE("/", h.DeleteTorrent)
+	torrents.DELETE("/published", h.DeletePublishedTorrent)
 }
 
 func (h *TorrentHandler) Create(c *gin.Context) {
@@ -94,6 +96,11 @@ func (h *TorrentHandler) executeAdd(c *gin.Context, identity models.TorrentIdent
 func (h *TorrentHandler) GetUserTorrents(c *gin.Context) {
 	userID := h.extractUserID(c)
 	res, err := h.service.GetUserTorrents(c.Request.Context(), userID)
+	h.respond(c, http.StatusOK, res, err)
+}
+
+func (h *TorrentHandler) GetStore(c *gin.Context) {
+	res, err := h.service.GetStoreTorrents(c.Request.Context())
 	h.respond(c, http.StatusOK, res, err)
 }
 
@@ -171,6 +178,16 @@ func (h *TorrentHandler) DeleteTorrent(c *gin.Context) {
 		return
 	}
 	err = h.service.DeleteTorrent(c.Request.Context(), userIdentity)
+	h.respondEmpty(c, http.StatusOK, err)
+}
+
+func (h *TorrentHandler) DeletePublishedTorrent(c *gin.Context) {
+	userIdentity, err := h.extractUserTorrentIdentity(c)
+	if err != nil {
+		h.fail(c, err)
+		return
+	}
+	err = h.service.DeletePublishedTorrent(c.Request.Context(), userIdentity)
 	h.respondEmpty(c, http.StatusOK, err)
 }
 

@@ -6,6 +6,7 @@ import (
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/redis/event_broker"
 	"github.com/gin-contrib/cors"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -25,7 +26,7 @@ func main() {
 	engine := setupHTTPServer()
 
 	corsConfig := cors.DefaultConfig()
-	corsConfig.AllowOrigins = []string{"http://localhost:5173", "http://localhost:3000"}
+	corsConfig.AllowOrigins = buildAllowedOrigins()
 	corsConfig.AllowMethods = []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"}
 	corsConfig.AllowHeaders = []string{"Origin", "Content-Type", "Accept", "Authorization"}
 	corsConfig.AllowCredentials = true
@@ -40,6 +41,19 @@ func main() {
 func loadEnvironment() {
 	err := godotenv.Load("../containerization/.env")
 	config.HandleInitError(err)
+}
+
+// buildAllowedOrigins parses the comma-separated FRONTEND_ORIGINS env var into
+// a list of CORS-allowed origins. Falls back to localhost:5173 if unset.
+func buildAllowedOrigins() []string {
+	raw := config.GetEnvOrDefault("FRONTEND_ORIGINS", "http://localhost:5173")
+	var origins []string
+	for _, part := range strings.Split(raw, ",") {
+		if trimmed := strings.TrimSpace(part); trimmed != "" {
+			origins = append(origins, trimmed)
+		}
+	}
+	return origins
 }
 
 func setupHTTPServer() *gin.Engine {

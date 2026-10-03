@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
-import { EyeOutlined, EyeInvisibleOutlined } from '@ant-design/icons';
+import { EyeOutlined, EyeInvisibleOutlined, AppstoreOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 import { formatDate } from '@/features/profile/utils/profileUtils';
 import type { UserFull } from '@/types/model/models.ts';
 import styles from './LeftPanel.module.css';
@@ -46,14 +47,30 @@ interface ProfileLeftPanelProps {
     user: UserFull;
 }
 
-export const ProfileLeftPanel: React.FC<ProfileLeftPanelProps> = ({ user }) => (
-    <div className={styles.leftPanel}>
-        <div className={styles.avatarRing}>
-            <img src="/favicon.svg" alt="Avatar" className={styles.avatarImage} />
+export const ProfileLeftPanel: React.FC<ProfileLeftPanelProps> = ({ user }) => {
+    const navigate = useNavigate();
+
+    const handleOpenStore = useCallback((): void => {
+        navigate('/store');
+    }, [navigate]);
+
+    return (
+        <div className={styles.leftPanel}>
+            <div className={styles.avatarRing}>
+                <img src="/favicon.svg" alt="Avatar" className={styles.avatarImage} />
+            </div>
+            <InfoBlock label="Nickname" value={user.nickname} />
+            <PublicKeyBlock publicKey={user.public_key} />
+            <InfoBlock label="Created At" value={formatDate(user.created_at)} />
+            <InfoBlock label="Role" value={user.role ?? 'user'} />
+            <button
+                type="button"
+                className={styles.storeButton}
+                onClick={handleOpenStore}
+            >
+                <AppstoreOutlined />
+                <span>View Torrent Catalog</span>
+            </button>
         </div>
-        <InfoBlock label="Nickname" value={user.nickname} />
-        <PublicKeyBlock publicKey={user.public_key} />
-        <InfoBlock label="Created At" value={formatDate(user.created_at)} />
-        <InfoBlock label="Role" value={user.role ?? 'user'} />
-    </div>
-);
+    );
+};

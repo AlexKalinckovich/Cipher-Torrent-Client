@@ -53,13 +53,16 @@ func NewAnacrolixEngine(dataDir string, localPubKey []byte, publisher eventPorts
 	return engine.initClient(dataDir)
 }
 
-func (e *AnacrolixEngine) StartDownload(infoBytes []byte, pubKey []byte) (string, error) {
-	log.Println("Start called")
+func (e *AnacrolixEngine) StartDownload(mi *metainfo.MetaInfo, pubKey []byte) (string, error) {
+	log.Println("[ENGINE] StartDownload called")
 
-	t, err := e.addTorrent(infoBytes)
+	t, err := e.addTorrent(mi)
 	if err != nil {
+		log.Printf("[ENGINE] ❌ StartDownload: addTorrent failed: %v", err)
 		return "", err
 	}
+
+	log.Printf("[ENGINE] StartDownload: torrent added, infoHash=%s, announce=%d", t.InfoHash().HexString(), len(mi.UpvertedAnnounceList()))
 
 	go e.monitorProgressEventDriven(t, pubKey)
 
@@ -71,6 +74,8 @@ func (e *AnacrolixEngine) monitorProgressEventDriven(t *torrent.Torrent, creator
 	pubKeyBase64 := base64.RawURLEncoding.EncodeToString(creatorPubKey)
 
 	channel := fmt.Sprintf("progress_%s", ih)
+
+	log.Printf("[ENGINE] monitorProgressEventDriven started for %s (channel %s)", ih, channel)
 
 	sub := t.SubscribePieceStateChanges()
 	defer sub.Close()
@@ -88,6 +93,7 @@ func (e *AnacrolixEngine) monitorProgressEventDriven(t *torrent.Torrent, creator
 		select {
 		case _, ok := <-sub.Values:
 			if !ok {
+				log.Printf("[ENGINE] monitorProgressEventDriven: subscription closed for %s", ih)
 				return
 			}
 
@@ -101,6 +107,16 @@ func (e *AnacrolixEngine) monitorProgressEventDriven(t *torrent.Torrent, creator
 
 			completedBytes := t.BytesCompleted()
 			length := t.Length()
+			info := t.Info()
+			seeders := t.Seeding()
+			peers := t.PeerConns()
+
+			log.Printf("[ENGINE] progress[%s] completed=%d length=%d seeders=%d peers=%d name=%s", ih, completedBytes, length, seeders, len(peers), func() string {
+				if info != nil {
+					return info.BestName()
+				}
+				return "(no info)"
+			}())
 
 			var progress float32
 			if length > 0 {
@@ -156,29 +172,40 @@ func (e *AnacrolixEngine) PauseTorrent(infoHash []byte) error {
 	return nil
 }
 
-func (e *AnacrolixEngine) ResumeTorrent(infoBytes []byte, key []byte) error {
-	log.Println("Resume called")
-	t, err := e.addTorrent(infoBytes)
+func (e *AnacrolixEngine) ResumeTorrent(mi *metainfo.MetaInfo, key []byte) error {
+	log.Println("[ENGINE] Resume called")
+	t, err := e.addTorrent(mi)
 	if err != nil {
+		log.Printf("[ENGINE] ❌ Resume: addTorrent failed: %v", err)
 		return err
 	}
+	log.Printf("[ENGINE] Resume: torrent added, infoHash=%s, announce=%d", t.InfoHash().HexString(), len(mi.UpvertedAnnounceList()))
 	go e.monitorProgressEventDriven(t, key)
 	_, err = e.activateTorrent(t)
 	return err
 }
 
-func (e *AnacrolixEngine) addTorrent(infoBytes []byte) (*torrent.Torrent, error) {
-	log.Printf("[ENGINE] 🚨 addTorrent TRIGGERED! Stack trace:")
+func (e *AnacrolixEngine) addTorrent(mi *metainfo.MetaInfo) (*torrent.Torrent, error) {
+	log.Printf("[ENGINE] 🚨 addTorrent called (info len=%d, announce=%d)", len(mi.InfoBytes), len(mi.UpvertedAnnounceList()))
 
-	mi := &metainfo.MetaInfo{InfoBytes: infoBytes}
-	return e.client.AddTorrent(mi)
+	t, err := e.client.AddTorrent(mi)
+	if err != nil {
+		log.Printf("[ENGINE] ❌ addTorrent error: %v", err)
+		return nil, err
+	}
+	log.Printf("[ENGINE] ✅ addTorrent OK: infoHash=%s", t.InfoHash().HexString())
+	return t, nil
 }
 
 func (e *AnacrolixEngine) activateTorrent(t *torrent.Torrent) (string, error) {
-	log.Printf("[ENGINE] 🚨 activateTorrent (DownloadAll) TRIGGERED! Stack trace:")
+	log.Printf("[ENGINE] 🚨 activateTorrent (DownloadAll) for %s", t.InfoHash().HexString())
 
 	<-t.GotInfo()
+	log.Printf("[ENGINE] GotInfo received for %s", t.InfoHash().HexString())
+
 	t.DownloadAll()
+	log.Printf("[ENGINE] DownloadAll called for %s", t.InfoHash().HexString())
+
 	return t.InfoHash().HexString(), nil
 }
 

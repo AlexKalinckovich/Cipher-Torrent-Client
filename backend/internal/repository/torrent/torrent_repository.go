@@ -75,6 +75,18 @@ func (r *TorrentRepository) GetUserTorrents(ctx context.Context, userID int64) (
 	return r.aggregateRowsToDTOs(rows), nil
 }
 
+func (r *TorrentRepository) GetAllTorrents(ctx context.Context) ([]torrentModel.StoreTorrentDTO, error) {
+	rows, err := r.queries.GetAllTorrents(ctx)
+	if translatedErr := r.translator.TranslateTorrentError(err); translatedErr != nil {
+		return nil, translatedErr
+	}
+	dtos := make([]torrentModel.StoreTorrentDTO, 0, len(rows))
+	for _, row := range rows {
+		dtos = append(dtos, torrentMapper.ToStoreDTO(row))
+	}
+	return dtos, nil
+}
+
 func (r *TorrentRepository) aggregateRowsToDTOs(rows []generated.GetUserTorrentsRow) []torrentModel.TorrentDTO {
 
 	type torrentKey string
@@ -162,5 +174,14 @@ func (r *TorrentRepository) DeleteUserTorrent(ctx context.Context, req repositor
 		CreatorPublicKey: req.CreatorPubKey,
 	}
 	_, err := r.queries.DeleteUserTorrent(ctx, params)
+	return r.translator.TranslateTorrentError(err)
+}
+
+func (r *TorrentRepository) DeleteTorrentByIdentity(ctx context.Context, req repository_port.TorrentIdentityRepositoryRequest) error {
+	params := generated.DeleteTorrentByIdentityParams{
+		InfoHash:         req.InfoHash,
+		CreatorPublicKey: req.CreatorPubKey,
+	}
+	_, err := r.queries.DeleteTorrentByIdentity(ctx, params)
 	return r.translator.TranslateTorrentError(err)
 }

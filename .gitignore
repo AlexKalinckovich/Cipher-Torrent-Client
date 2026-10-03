@@ -1,0 +1,23 @@
+# Environment files (secrets)
+.env
+**/.env
+!**/.env.example
+
+# Go
+backend/torrent_data_dir/
+backend/*.exe
+
+# sqlc generated code (regenerated via `sqlc generate`)
+backend/internal/service/**/generated/
+
+# Editor / OS
+.DS_Store
+.idea
+.vscode/
+
+# VS Code Local History (transient editor snapshots, not source)
+.history/
+
+# Self-hosted WebTorrent tracker service (local dev tool, not part of the app)
+tracker/
+tracker/node_modules/

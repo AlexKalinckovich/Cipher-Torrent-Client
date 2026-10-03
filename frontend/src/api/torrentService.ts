@@ -3,7 +3,8 @@ import type {
     TorrentDTO,
     TorrentEntity,
     TorrentIdentity,
-    ProgressUpdateRequest
+    ProgressUpdateRequest,
+    StoreTorrent
 } from '../types/model/models.ts'; // Adjust import path to your models file
 
 export class TorrentService {
@@ -79,11 +80,21 @@ export class TorrentService {
 
     /**
      * DELETE /torrents/
-     * Deletes a torrent from storage and database (JSON body).
+     * Removes a torrent from the CURRENT user's library only (JSON body).
+     * Does NOT delete the shared MinIO object.
      * Note: Axios requires the `data` property to send a body in a DELETE request.
      */
     public async deleteTorrent(identity: TorrentIdentity): Promise<void> {
         await api.delete('/torrents/', { data: identity });
+    }
+
+    /**
+     * DELETE /torrents/published
+     * Deletes a published torrent from the store entirely: MinIO object + DB row
+     * (cascades to all users' libraries).
+     */
+    public async deletePublishedTorrent(identity: TorrentIdentity): Promise<void> {
+        await api.delete('/torrents/published', { data: identity });
     }
 
     /**
@@ -92,6 +103,15 @@ export class TorrentService {
      */
     public async signTorrent(identity: TorrentIdentity): Promise<TorrentDTO> {
         const response = await api.post<TorrentDTO>('/torrents/sign', identity);
+        return response.data;
+    }
+
+    /**
+     * GET /torrents/store
+     * Fetches all published torrents (name + creator public key) for the storefront.
+     */
+    public async getStoreTorrents(): Promise<StoreTorrent[]> {
+        const response = await api.get<StoreTorrent[]>('/torrents/store');
         return response.data;
     }
 }
