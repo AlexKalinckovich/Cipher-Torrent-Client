@@ -108,9 +108,10 @@ func bootstrapTorrentModule(rg *gin.RouterGroup, conn *sql.DB, redisClient *redi
 	userRepository := userRepo.NewUserRepository(conn, userQueries)
 	mapper := meta_info.NewMetainfoMapper()
 
-	// Initialize stats tracker
+	// Initialize stats tracker. The torrent repository is passed in so the
+	// tracker can persist live download progress to user_torrents.
 	userRepoForStats := userRepo.NewUserRepository(conn, userQueries)
-	statsTracker := stats.NewStatsTracker(redisPublisher, userRepoForStats)
+	statsTracker := stats.NewStatsTracker(redisPublisher, userRepoForStats, repository)
 
 	service := torrent.NewService(repository, engine, storageRepo, userRepository, mapper, statsTracker)
 	handler := torrent_handler.NewTorrentHandler(service)
