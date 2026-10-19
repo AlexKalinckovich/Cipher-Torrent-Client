@@ -28,5 +28,10 @@ SET
     password_hash = COALESCE(sqlc.narg('password_hash'), password_hash)
 WHERE id = sqlc.arg('id');
 
+-- name: UpdateUserAvatarPath :exec
+UPDATE users
+SET avatar_path = ?
+WHERE id = ?;
+
 -- name: DeleteUser :exec
 DELETE FROM users WHERE id = ?;

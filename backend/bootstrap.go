@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/handlers/auth_handler"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/handlers/torrent_handler"
@@ -15,6 +16,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	minioClient "github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/redis/go-redis/v9"
 
 	torrentDb "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/torrent/generated"
@@ -41,20 +44,22 @@ import (
 )
 
 func bootstrapModules(rg *gin.RouterGroup, conn *sql.DB, redisClient *redis.Client) {
-	userSvc := bootstrapUserModule(rg, conn)
+	minioClient, bucketName := initializeMinioClient()
+	userSvc := bootstrapUserModule(rg, conn, minioClient, bucketName)
 	bootstrapAuthModule(rg, redisClient, userSvc)
 	bootstrapTorrentModule(rg, conn, redisClient)
 	bootstrapTorrentSignatureModule(rg, conn)
 }
 
-func bootstrapUserModule(rg *gin.RouterGroup, conn *sql.DB) *userService.UserService {
+func bootstrapUserModule(rg *gin.RouterGroup, conn *sql.DB, mClient *minioClient.Client, bucketName string) *userService.UserService {
 	queries := userDb.New(conn)
 	repository := userRepo.NewUserRepository(conn, queries)
 	validator := userValidator.NewUserValidator()
 	mapper := userMapper.NewUserDTOMapper()
 	masterKey := config.GetRequiredEnv("AES_MASTER_KEY")
 	cr := initializeCryptoService(masterKey)
-	service := userService.NewUserService(repository, mapper, validator, cr)
+	avatarStore := minio.NewAvatarStorageRepository(mClient, bucketName)
+	service := userService.NewUserService(repository, mapper, validator, cr, avatarStore)
 	handler := user_handler.NewUserHandler(service)
 	handler.RegisterRoutes(rg)
 	return service
@@ -122,6 +127,32 @@ func initializeCryptoService(masterKey string) crypto.CryptoServicePort {
 	cr, err := crypto.NewCryptoService(masterKey)
 	config.HandleInitError(err)
 	return cr
+}
+
+func initializeMinioClient() (*minioClient.Client, string) {
+	endpoint := config.GetRequiredEnv("MINIO_ENDPOINT")
+	accessKey := config.GetRequiredEnv("MINIO_ROOT_USER")
+	secretKey := config.GetRequiredEnv("MINIO_ROOT_PASSWORD")
+	bucketName := config.GetRequiredEnv("MINIO_BUCKET_NAME")
+
+	client, err := minioClient.New(endpoint, &minioClient.Options{
+		Creds:  credentials.NewStaticV4(accessKey, secretKey, ""),
+		Secure: false,
+	})
+	config.HandleInitError(err)
+
+	ctx := context.Background()
+	exists, err := client.BucketExists(ctx, bucketName)
+	if err != nil {
+		config.HandleInitError(err)
+	}
+	if !exists {
+		if err := client.MakeBucket(ctx, bucketName, minioClient.MakeBucketOptions{}); err != nil {
+			config.HandleInitError(err)
+		}
+	}
+
+	return client, bucketName
 }
 
 func initializeMinioStorage() storagePorts.TorrentStoragePort {

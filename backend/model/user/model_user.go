@@ -22,5 +22,7 @@ type User struct {
 
 	Nickname string `json:"nickname"`
 
+	AvatarPath string `json:"avatar_path,omitempty"`
+
 	CreatedAt time.Time `json:"created_at"`
 }

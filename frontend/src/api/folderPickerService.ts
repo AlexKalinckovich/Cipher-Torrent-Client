@@ -1,16 +1,3 @@
-// api/folderPickerService.ts
-//
-// Client-side download folder chooser.
-//
-// We use `browser-fs-access` to pick a directory: it wraps the native File
-// System Access API and transparently falls back to a `<input webkitdirectory>`
-// on browsers that don't support it, so we don't need to hand-roll the picker.
-//
-// Browsers do not expose the real filesystem path of a chosen directory, so we
-// persist the returned FileSystemDirectoryHandle (a structured-cloneable object)
-// in IndexedDB. This lets the app "remember" the folder it should download a
-// torrent into, ready to be handed to the backend / upload logic later.
-
 import { directoryOpen, supported } from 'browser-fs-access';
 
 const DB_NAME = 'cipher-torrent';
@@ -54,15 +41,12 @@ export async function pickDownloadFolder(): Promise<PickedFolder> {
         );
     }
 
-    // Open a directory with write access (recursive gives us subfolders and a
-    // directoryHandle on the files so we can resolve the chosen root later).
     const files = await directoryOpen({
         recursive: true,
         mode: 'readwrite',
     });
 
-    // Prefer the directory handle from the first returned file, otherwise fall
-    // back to an empty handle (legacy fallback doesn't expose one).
+        
     const first = files[0] as
         | { directoryHandle?: FileSystemDirectoryHandle | null }
         | undefined;
@@ -86,10 +70,6 @@ export async function pickDownloadFolder(): Promise<PickedFolder> {
     return folder;
 }
 
-/**
- * Returns the most recently chosen folder, if any. Useful to prefill the
- * chooser and to show where a torrent will be stored.
- */
 export async function getLastPickedFolder(): Promise<PickedFolder | null> {
     try {
         const db = await openDB();
