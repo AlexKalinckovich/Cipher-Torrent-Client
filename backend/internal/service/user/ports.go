@@ -16,6 +16,7 @@ type UserRepositoryPort interface {
 	GetByNickname(ctx context.Context, nickname string) (db.User, error)
 	GetByPublicKey(ctx context.Context, publicKey []byte) (db.User, error)
 	Patch(ctx context.Context, id int64, fields PatchUserFields) error
+	UpdateAvatarPath(ctx context.Context, id int64, avatarPath string) error
 }
 
 type UserServicePort interface {
@@ -27,6 +28,7 @@ type UserServicePort interface {
 	GetByPublicKey(ctx context.Context, publicKey []byte) (userModel.UserFull, error)
 	Update(ctx context.Context, id int64, params UpdateUserInput) (userModel.UserFull, error)
 	Patch(ctx context.Context, id int64, fields PatchUserFields) (userModel.UserFull, error)
+	UpdateAvatar(ctx context.Context, id int64, fileBytes []byte, ext string) (userModel.UserFull, error)
 	Delete(ctx context.Context, id int64) error
 }
 

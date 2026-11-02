@@ -1,12 +1,17 @@
 import React, { useMemo, useState, useDeferredValue, useCallback } from 'react';
 import { Button, Empty, Spin, message, Input, Upload } from 'antd';
-import { ArrowLeftOutlined, SearchOutlined, UploadOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, FolderOpenOutlined, SearchOutlined, UploadOutlined } from '@ant-design/icons';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useStoreTorrents } from '@/hooks/useStoreTorrents.ts';
 import { useAuth } from '@/AuthContext.tsx';
 import type { StoreTorrent, TorrentDTO, TorrentIdentity } from '@/types/model/models.ts';
 import { useAddTorrent, useCreateTorrent, useSignTorrent, useDeletePublishedTorrent } from '@/hooks/useTorrents.ts';
+import {
+    pickDownloadFolder,
+    getLastPickedFolder,
+    type PickedFolder,
+} from '@/api/folderPickerService.ts';
 import { StoreCard } from './components/StoreCard/StoreCard';
 import styles from './Storefront.module.css';
 
@@ -27,6 +32,18 @@ export const Storefront: React.FC = () => {
     const { mutate: deletePublished } = useDeletePublishedTorrent();
     const [downloadingHash, setDownloadingHash] = React.useState<string | null>(null);
     const [deletingHash, setDeletingHash] = React.useState<string | null>(null);
+    const [downloadFolder, setDownloadFolder] = React.useState<PickedFolder | null>(null);
+    const [pickingFolder, setPickingFolder] = React.useState<boolean>(false);
+
+    // Restore the last chosen download folder so users don't have to re-pick
+    // every time they download a torrent.
+    React.useEffect(() => {
+        void getLastPickedFolder().then((folder) => {
+            if (folder) {
+                setDownloadFolder(folder);
+            }
+        });
+    }, []);
 
     // Search state: input is urgent, list renders from the deferred value.
     const [query, setQuery] = useState('');
@@ -52,11 +69,38 @@ export const Storefront: React.FC = () => {
         return prepared.filter((it) => it.searchText.includes(q));
     }, [prepared, deferredQuery]);
 
+    // Choose (or re-choose) the folder where downloads will be stored.
+    const handleChooseFolder = useCallback(async (): Promise<void> => {
+        setPickingFolder(true);
+        try {
+            const folder = await pickDownloadFolder();
+            setDownloadFolder(folder);
+            void message.success(`Download folder set to "${folder.name}"`);
+        } catch (err) {
+            if (err instanceof DOMException && err.name === 'AbortError') {
+                return; // user cancelled the picker, not an error
+            }
+            const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+            void message.error(`Failed to choose folder: ${errorMessage}`);
+        } finally {
+            setPickingFolder(false);
+        }
+    }, []);
+
     const handleDownload = useCallback((torrent: StoreTorrent): void => {
         const identity: TorrentIdentity = {
             info_hash: torrent.info_hash,
             creator_pub_key: torrent.creator_public_key,
         };
+
+        // If no folder has been chosen yet, ask the user to pick one first.
+        // The chosen folder (a persisted FileSystemDirectoryHandle) is what the
+        // client will later write the downloaded files into.
+        if (!downloadFolder) {
+            void message.info('Please choose a download folder first');
+            void handleChooseFolder();
+            return;
+        }
 
         setDownloadingHash(torrent.info_hash);
         addTorrent(identity, {
@@ -69,7 +113,7 @@ export const Storefront: React.FC = () => {
                 setDownloadingHash(null);
             },
         });
-    }, [addTorrent, navigate]);
+    }, [addTorrent, navigate, downloadFolder, handleChooseFolder]);
 
     // Delete a torrent the current user published: removes the MinIO object and
     // the torrents row (cascades to all users' libraries). Only shown for own torrents.
@@ -141,6 +185,13 @@ export const Storefront: React.FC = () => {
                 </Button>
                 <h1 className={styles.title}>Torrent Storefront</h1>
                 <div className={styles.headerActions}>
+                    <Button
+                        icon={<FolderOpenOutlined />}
+                        loading={pickingFolder}
+                        onClick={handleChooseFolder}
+                    >
+                        {downloadFolder ? `Folder: ${downloadFolder.name}` : 'Choose download folder'}
+                    </Button>
                     <Upload
                         accept=".torrent"
                         showUploadList={false}

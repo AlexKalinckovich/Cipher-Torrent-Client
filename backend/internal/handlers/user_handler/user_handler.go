@@ -2,6 +2,10 @@ package user_handler
 
 import (
 	"encoding/base64"
+	"io"
+	"path/filepath"
+	"strings"
+
 	serviceUser "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/user"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/custom_errors/user_errors"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/transport/json_binder"
@@ -35,6 +39,7 @@ func (h *UserHandler) RegisterRoutes(rg *gin.RouterGroup) {
 		users.GET("/password/:email", h.GetPasswordHash)
 		users.GET("/public-key", h.GetByPublicKey)
 		users.PUT("/:id", h.Update)
+		users.PUT("/:id/avatar", h.UpdateAvatar)
 		users.PATCH("/:id", h.Patch)
 		users.DELETE("/:id", h.Delete)
 	}
@@ -198,6 +203,35 @@ func (h *UserHandler) handlePatchResult(c *gin.Context, res userModel.UserFull, 
 	c.JSON(http.StatusOK, res)
 }
 
+func (h *UserHandler) UpdateAvatar(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		h.fail(c, err)
+		return
+	}
+
+	file, header, err := c.Request.FormFile("avatar")
+	if err != nil {
+		h.fail(c, err)
+		return
+	}
+	defer file.Close()
+
+	ext := sanitizeExt(header.Filename)
+	data, err := io.ReadAll(file)
+	if err != nil {
+		h.fail(c, err)
+		return
+	}
+
+	res, err := h.service.UpdateAvatar(c.Request.Context(), id, data, ext)
+	if err != nil {
+		h.fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, res)
+}
+
 func (h *UserHandler) Delete(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	h.handleDeleteID(c, id, err)
@@ -218,6 +252,17 @@ func (h *UserHandler) handleDeleteResult(c *gin.Context, err error) {
 		return
 	}
 	c.Status(http.StatusNoContent)
+}
+
+// sanitizeExt extracts a safe lowercase file extension from a filename, defaulting
+// to "jpg" when none is present.
+func sanitizeExt(filename string) string {
+	ext := strings.ToLower(filepath.Ext(filename))
+	ext = strings.TrimPrefix(ext, ".")
+	if ext == "" {
+		return "jpg"
+	}
+	return ext
 }
 
 func (h *UserHandler) fail(c *gin.Context, err error) {

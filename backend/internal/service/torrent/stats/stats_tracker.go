@@ -2,22 +2,34 @@ package stats
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/redis/ports"
 	"log"
 	"sync"
 	"time"
 
+	repository_port "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/repository/torrent/repository_ports"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/repository/user"
 	generated "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/user/generated"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/model/packet"
 )
 
+// ProgressRepository persists a torrent's download progress for a user so it
+// survives pause/resume and reloads.
+type ProgressRepository interface {
+	UpdateUserTorrentProgress(ctx context.Context, req repository_port.UpdateProgressRepositoryRequest) error
+}
+
 type torrentState struct {
-	userID              int64
+	infoHashHex       string
+	creatorPubKeyB64  string
+	userID            int64
 	lastDownloadedBytes int64
 	lastUploadedBytes   int64
 	lastUpdateTime      time.Time
+	lastProgress        float32
 }
 
 type userDelta struct {
@@ -26,19 +38,21 @@ type userDelta struct {
 }
 
 type StatsTracker struct {
-	broker        ports.EventBroker
-	userRepo      *user.UserRepository
-	torrentMap    map[string]int64
-	torrentStates map[string]*torrentState
-	mu            sync.Mutex
+	broker            ports.EventBroker
+	userRepo          *user.UserRepository
+	progressRepo      ProgressRepository
+	torrentMap        map[string]int64
+	torrentStates     map[string]*torrentState
+	mu                sync.Mutex
 }
 
-func NewStatsTracker(broker ports.EventBroker, userRepo *user.UserRepository) *StatsTracker {
+func NewStatsTracker(broker ports.EventBroker, userRepo *user.UserRepository, progressRepo ProgressRepository) *StatsTracker {
 	tracker := &StatsTracker{
-		broker:        broker,
-		userRepo:      userRepo,
-		torrentMap:    make(map[string]int64),
-		torrentStates: make(map[string]*torrentState),
+		broker:            broker,
+		userRepo:          userRepo,
+		progressRepo:      progressRepo,
+		torrentMap:        make(map[string]int64),
+		torrentStates:     make(map[string]*torrentState),
 	}
 	go tracker.listenToProgress()
 	go tracker.periodicStatsUpdate()
@@ -69,8 +83,10 @@ func (t *StatsTracker) RegisterTorrent(infoHash, creatorPubKey string, userID in
 	}
 	t.torrentMap[key] = userID
 	t.torrentStates[key] = &torrentState{
-		userID:         userID,
-		lastUpdateTime: time.Now(),
+		infoHashHex:      infoHash,
+		creatorPubKeyB64: creatorPubKey,
+		userID:           userID,
+		lastUpdateTime:   time.Now(),
 	}
 	log.Printf("[STATS] Registered torrent: %s for user %d", key, userID)
 }
@@ -142,7 +158,9 @@ func (t *StatsTracker) applyProgressDelta(progress *packet.ProgressLog) {
 	state.lastDownloadedBytes += progress.DownloadSpeedBps * int64(elapsed)
 	state.lastUploadedBytes += progress.UploadSpeedBps * int64(elapsed)
 	state.lastUpdateTime = now
-	log.Printf("[STATS] ✅ applied delta key=%q downloaded+=%d uploaded+=%d", key, progress.DownloadSpeedBps*int64(elapsed), progress.UploadSpeedBps*int64(elapsed))
+	// Track the latest completed fraction so we can persist it on the periodic flush.
+	state.lastProgress = progress.Progress
+	log.Printf("[STATS] ✅ applied delta key=%q downloaded+=%d uploaded+=%d progress=%.4f", key, progress.DownloadSpeedBps*int64(elapsed), progress.UploadSpeedBps*int64(elapsed), progress.Progress)
 }
 
 func (t *StatsTracker) periodicStatsUpdate() {
@@ -162,18 +180,33 @@ func (t *StatsTracker) knownKeysLocked() []string {
 }
 
 func (t *StatsTracker) flushStatsToDB() {
-	userDeltas := t.extractAndResetDeltas()
+	userDeltas, progressUpdates := t.extractAndResetDeltas()
 	t.persistDeltasToDB(userDeltas)
+	t.persistProgressUpdates(progressUpdates)
 }
 
-func (t *StatsTracker) extractAndResetDeltas() map[int64]userDelta {
+// extractAndResetDeltas snapshots the byte deltas and the latest progress for
+// every tracked torrent, then resets the byte counters. Progress is kept in
+// state (not reset) and read from a separate, locked snapshot.
+func (t *StatsTracker) extractAndResetDeltas() (map[int64]userDelta, []repository_port.UpdateProgressRepositoryRequest) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	userDeltas := make(map[int64]userDelta)
+	progressUpdates := make([]repository_port.UpdateProgressRepositoryRequest, 0, len(t.torrentStates))
 	for _, state := range t.torrentStates {
 		t.accumulateDelta(userDeltas, state)
+		if state.lastProgress > 0 {
+			progressUpdates = append(progressUpdates, repository_port.UpdateProgressRepositoryRequest{
+				UserID:        state.userID,
+				InfoHash:      hexDecode(state.infoHashHex),
+				CreatorPubKey: base64Decode(state.creatorPubKeyB64),
+				// The engine reports progress as a 0..1 fraction; the DB and the
+				// Dashboard render it as a percentage, so convert here.
+				Progress: state.lastProgress * 100,
+			})
+		}
 	}
-	return userDeltas
+	return userDeltas, progressUpdates
 }
 
 func (t *StatsTracker) accumulateDelta(userDeltas map[int64]userDelta, state *torrentState) {
@@ -186,6 +219,35 @@ func (t *StatsTracker) accumulateDelta(userDeltas map[int64]userDelta, state *to
 	userDeltas[state.userID] = delta
 	state.lastDownloadedBytes = 0
 	state.lastUploadedBytes = 0
+}
+
+// persistProgressUpdates writes the latest known progress fraction to the DB
+// so a torrent keeps its progress across pause/resume and page reloads.
+func (t *StatsTracker) persistProgressUpdates(updates []repository_port.UpdateProgressRepositoryRequest) {
+	ctx := context.Background()
+	for _, update := range updates {
+		if err := t.progressRepo.UpdateUserTorrentProgress(ctx, update); err != nil {
+			log.Printf("[STATS] Failed to persist progress for user %d torrent %s: %v", update.UserID, hex.EncodeToString(update.InfoHash), err)
+			continue
+		}
+		log.Printf("[STATS] ✅ persisted progress user=%d torrent=%s progress=%.4f", update.UserID, hex.EncodeToString(update.InfoHash), update.Progress)
+	}
+}
+
+func hexDecode(s string) []byte {
+	b, err := hex.DecodeString(s)
+	if err != nil {
+		return nil
+	}
+	return b
+}
+
+func base64Decode(s string) []byte {
+	b, err := base64.RawURLEncoding.DecodeString(s)
+	if err != nil {
+		return nil
+	}
+	return b
 }
 
 func (t *StatsTracker) persistDeltasToDB(userDeltas map[int64]userDelta) {

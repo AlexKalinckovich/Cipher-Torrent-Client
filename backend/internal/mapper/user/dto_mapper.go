@@ -30,6 +30,7 @@ func (m *UserDTOMapper) toUserDTO(src db.User) userModel.User {
 		Email:     src.Email,
 		PublicKey: encodedToStringPublicKey,
 		Nickname:  src.Nickname,
+		AvatarPath: src.AvatarPath.String,
 		CreatedAt: src.CreatedAt,
 	}
 }

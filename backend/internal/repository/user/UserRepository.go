@@ -58,6 +58,14 @@ func (r *UserRepository) Update(ctx context.Context, arg generated.UpdateUserPar
 	return r.translator.TranslateUserError(err)
 }
 
+func (r *UserRepository) UpdateAvatarPath(ctx context.Context, id int64, avatarPath string) error {
+	err := r.queries.UpdateUserAvatarPath(ctx, generated.UpdateUserAvatarPathParams{
+		AvatarPath: toNullString(&avatarPath),
+		ID:         id,
+	})
+	return r.translator.TranslateUserError(err)
+}
+
 func (r *UserRepository) Patch(ctx context.Context, id int64, fields user.PatchUserFields) error {
 	params := r.buildPatchParams(id, fields)
 	err := r.queries.PatchUser(ctx, params)

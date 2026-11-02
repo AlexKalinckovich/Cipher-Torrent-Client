@@ -5,6 +5,7 @@ import (
 	"time"
 
 	db "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/user/generated"
+	storagePorts "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/storage/ports"
 	serviceErrors "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/custom_errors/crypto_errors"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/dpki"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/security"
@@ -12,10 +13,11 @@ import (
 )
 
 type UserService struct {
-	repository UserRepositoryPort
-	mapper     UserMapperPort
-	validator  UserValidatorPort
-	crypto     security.CryptoServicePort
+	repository  UserRepositoryPort
+	mapper      UserMapperPort
+	validator   UserValidatorPort
+	crypto      security.CryptoServicePort
+	avatarStore storagePorts.AvatarStoragePort
 }
 
 func NewUserService(
@@ -23,12 +25,14 @@ func NewUserService(
 	mapper UserMapperPort,
 	validator UserValidatorPort,
 	crypto security.CryptoServicePort,
+	avatarStore storagePorts.AvatarStoragePort,
 ) *UserService {
 	return &UserService{
-		repository: repository,
-		mapper:     mapper,
-		validator:  validator,
-		crypto:     crypto,
+		repository:  repository,
+		mapper:      mapper,
+		validator:   validator,
+		crypto:      crypto,
+		avatarStore: avatarStore,
 	}
 }
 
@@ -120,6 +124,29 @@ func (s *UserService) Patch(ctx context.Context, id int64, fields PatchUserField
 	if err := s.repository.Patch(ctx, id, fields); err != nil {
 		return userModel.UserFull{}, err
 	}
+	return s.Get(ctx, id)
+}
+
+func (s *UserService) UpdateAvatar(ctx context.Context, id int64, fileBytes []byte, ext string) (userModel.UserFull, error) {
+	userRow, err := s.repository.GetByID(ctx, id)
+	if err != nil {
+		return userModel.UserFull{}, err
+	}
+
+	// Store the new avatar in MinIO under a unique per-user path.
+	avatarPath, err := s.avatarStore.UploadAvatar(ctx, storagePorts.AvatarUploadRequest{
+		PublicKey: userRow.PublicKey,
+		FileBytes: fileBytes,
+		Ext:       ext,
+	})
+	if err != nil {
+		return userModel.UserFull{}, err
+	}
+
+	if err := s.repository.UpdateAvatarPath(ctx, id, avatarPath); err != nil {
+		return userModel.UserFull{}, err
+	}
+
 	return s.Get(ctx, id)
 }
 

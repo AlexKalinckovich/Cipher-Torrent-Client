@@ -53,6 +53,9 @@
 
 .headerActions {
     margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
 }
 
 .title {
