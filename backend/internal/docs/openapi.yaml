@@ -1,0 +1,1446 @@
+openapi: 3.0.3
+
+info:
+  title: Cipher Torrent Client API
+  version: 1.0.0
+  description: |
+    REST API of the Cipher Torrent node (key-based / DPKI torrent client).
+
+    All routes are mounted under `/api/v1`. Routes that mutate or read user data require a
+    JWT access token (`Authorization: Bearer <access_token>`) issued by `/auth/login` or
+    `/auth/register`. The only public routes are the auth routes and the WebSocket streams.
+
+    ## Encoding conventions
+
+    * `info_hash` — 20-byte BitTorrent info hash, sent as **40 lowercase hex characters**.
+    * `creator_pub_key` / `creator_public_key` / `signer_public_key` — 32-byte Ed25519 public key,
+      sent as **base64url without padding** (`base64.RawURLEncoding`).
+    * `signature_bytes` — signature blob sent as **hex**.
+    * `[]byte` fields that go over the wire without an explicit encoder (for example
+      `from_pub_key` in reputation events) are serialized by Go as **standard base64**.
+
+    ## Real-time events (WebSocket)
+
+    Two unauthenticated WebSocket streams are available:
+
+    * `GET /api/v1/ws/torrent/{infoHash}` — subscribes to the channel `torrent_<info_hash_hex>`.
+    * `GET /api/v1/ws/dashboard` — subscribes to the channel `global_progress`.
+
+    The server pushes text frames with JSON payloads described by `TorrentStreamEvent`.
+    Currently `packet` and `torrent:progress` events are emitted by the torrent engine;
+    `peer:connected` and `reputation:update` are part of the event model.
+
+    ## Interactive documentation
+
+    * Swagger UI: `/api/v1/docs`
+    * Raw contract: `/api/v1/docs/openapi.yaml`
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local development server
+
+tags:
+  - name: Auth
+    description: Registration, login and access-token rotation.
+  - name: Users
+    description: User profiles, statistics and avatars.
+  - name: Torrents
+    description: Torrent library, storefront and transfer control.
+  - name: Signatures
+    description: Torrent signing and signed .torrent download.
+  - name: WebSocket
+    description: Real-time event streams.
+  - name: Docs
+    description: Serves the OpenAPI contract and Swagger UI.
+
+security:
+  - BearerAuth: []
+
+paths:
+  /auth/register:
+    post:
+      tags: [Auth]
+      operationId: registerUser
+      summary: Register a new user and issue tokens
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthRegisterRequest'
+      responses:
+        '200':
+          description: User created, tokens issued.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      operationId: loginUser
+      summary: Authenticate with email and password
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthLoginRequest'
+      responses:
+        '200':
+          description: Credentials accepted, tokens issued.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          description: Invalid email or password (`INVALID_CREDENTIALS`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      operationId: refreshToken
+      summary: Rotate a refresh token
+      description: |
+        Consumes the supplied refresh token (it is deleted) and returns a fresh token pair.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+      responses:
+        '200':
+          description: New token pair.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokensResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          description: Refresh token is unknown or already rotated (`INVALID_REFRESH_TOKEN`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /users:
+    post:
+      tags: [Users]
+      operationId: createUser
+      summary: Create a user directly
+      description: |
+        Low-level admin-style creation. A DPKI key pair and `user_stats` row are generated
+        server side. `PasswordHash` is stored as is, so callers are expected to send an
+        already hashed password. Prefer `/auth/register` for regular sign-ups.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreateRequest'
+      responses:
+        '201':
+          description: User created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserFull'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /users/me:
+    get:
+      tags: [Users]
+      operationId: getCurrentUser
+      summary: Profile of the authenticated user
+      responses:
+        '200':
+          description: User profile with statistics.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserFull'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/UserNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /users/{id}:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+    get:
+      tags: [Users]
+      operationId: getUserById
+      summary: Profile by numeric id
+      responses:
+        '200':
+          description: User profile with statistics.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserFull'
+        '400':
+          description: "`id` is not a valid int64."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/UserNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    put:
+      tags: [Users]
+      operationId: updateUser
+      summary: Replace user profile fields
+      description: |
+        Full update of the mutable columns. `PasswordHash` is written verbatim
+        (send a hash, not a plain password). `Role` must be `user` or `admin`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserUpdateRequest'
+      responses:
+        '200':
+          description: Updated profile.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserFull'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/UserNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    patch:
+      tags: [Users]
+      operationId: patchUser
+      summary: Update selected user profile fields
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserPatchRequest'
+      responses:
+        '200':
+          description: Updated profile.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserFull'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/UserNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      tags: [Users]
+      operationId: deleteUser
+      summary: Delete a user
+      responses:
+        '204':
+          description: User deleted (cascades to `user_stats`).
+        '400':
+          description: "`id` is not a valid int64."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /users/email/{email}:
+    get:
+      tags: [Users]
+      operationId: getUserByEmail
+      summary: Profile by email
+      parameters:
+        - name: email
+          in: path
+          required: true
+          schema:
+            type: string
+            format: email
+      responses:
+        '200':
+          description: User profile with statistics.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserFull'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/UserNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /users/nickname/{nickname}:
+    get:
+      tags: [Users]
+      operationId: getUserByNickname
+      summary: Profile by nickname
+      parameters:
+        - name: nickname
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^[a-zA-Z0-9]{3,16}$'
+      responses:
+        '200':
+          description: User profile with statistics.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserFull'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/UserNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /users/password/{email}:
+    get:
+      tags: [Users]
+      operationId: getUserPasswordHash
+      summary: Read a stored password hash
+      description: |
+        Returns the raw `password_hash` column as a JSON string.
+        Used by the auth service; exposed here as an internal helper endpoint.
+      parameters:
+        - name: email
+          in: path
+          required: true
+          schema:
+            type: string
+            format: email
+      responses:
+        '200':
+          description: Stored password hash.
+          content:
+            application/json:
+              schema:
+                type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/UserNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /users/public-key:
+    get:
+      tags: [Users]
+      operationId: getUserByPublicKey
+      summary: Profile by public key
+      parameters:
+        - name: pub_key
+          in: query
+          required: true
+          description: Ed25519 public key encoded as base64url without padding.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: User profile with statistics.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserFull'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/UserNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /users/{id}/avatar:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+    put:
+      tags: [Users]
+      operationId: updateUserAvatar
+      summary: Upload a user avatar
+      description: |
+        The file is stored in object storage under a per-user key and `avatar_path`
+        is updated accordingly. The extension is taken from the uploaded filename
+        (defaults to `jpg`).
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [avatar]
+              properties:
+                avatar:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Updated profile.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserFull'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/UserNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /torrents/:
+    get:
+      tags: [Torrents]
+      operationId: getUserTorrents
+      summary: Torrents in the current user's library
+      description: |
+        The collection route is registered with a trailing slash (`/torrents/`).
+      responses:
+        '200':
+          description: User torrent library, with files and signatures expanded.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TorrentDTO'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      tags: [Torrents]
+      operationId: deleteUserTorrent
+      summary: Remove a torrent from the current user's library
+      description: |
+        Removes the `user_torrents` row of the authenticated user and stops the engine
+        download. The shared `.torrent` object in object storage is intentionally kept,
+        so other users can still add the torrent from the store.
+
+        The identity is required in the request body (`DELETE` with body).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TorrentIdentity'
+      responses:
+        '200':
+          description: Torrent removed from the library.
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /torrents/create:
+    post:
+      tags: [Torrents]
+      operationId: createTorrent
+      summary: Publish a .torrent file
+      description: |
+        Uploads a `.torrent` file. The metainfo is parsed, the file is stored in object
+        storage under the authenticated user's public key, the torrent row is persisted
+        and the download starts immediately.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [torrent_file]
+              properties:
+                torrent_file:
+                  type: string
+                  format: binary
+      responses:
+        '201':
+          description: Torrent published and registered for the current user.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TorrentDTO'
+        '400':
+          description: |
+            Torrent file missing from the request (`TORRENT_FILE_MISSING`) or body
+            could not be decoded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /torrents/add:
+    post:
+      tags: [Torrents]
+      operationId: addTorrent
+      summary: Add a published torrent to the current user's library
+      description: |
+        Downloads the `.torrent` object from storage using the identity of the original
+        creator, starts the engine download, re-uploads the object under the current
+        user's key and creates the `user_torrents` row. Adding the same torrent twice is
+        an idempotent no-op.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TorrentIdentity'
+      responses:
+        '200':
+          description: Torrent added (or already present).
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /torrents/store:
+    get:
+      tags: [Torrents]
+      operationId: getStoreTorrents
+      summary: Published torrents available in the store
+      responses:
+        '200':
+          description: Storefront listing, newest first.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StoreTorrentDTO'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /torrents/pause:
+    post:
+      tags: [Torrents]
+      operationId: pauseTorrent
+      summary: Pause a torrent
+      description: Drops the torrent from the engine and stores status `paused`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TorrentIdentity'
+      responses:
+        '200':
+          description: Torrent paused.
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /torrents/resume:
+    post:
+      tags: [Torrents]
+      operationId: resumeTorrent
+      summary: Resume a torrent
+      description: |
+        Re-reads the `.torrent` object from storage, re-adds it to the engine and stores
+        status `downloading`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TorrentIdentity'
+      responses:
+        '200':
+          description: Torrent resumed.
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /torrents/progress:
+    post:
+      tags: [Torrents]
+      operationId: updateTorrentProgress
+      summary: Persist download progress
+      description: |
+        Stores `progress` for the user/torrent pair. The server's own stats tracker writes
+        the percentage reported by the engine periodically, so this endpoint is mainly
+        used by clients that want to force a specific value.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProgressUpdateRequest'
+      responses:
+        '200':
+          description: Progress stored.
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /torrents/download:
+    get:
+      tags: [Signatures]
+      operationId: downloadSignedTorrent
+      summary: Download a signed .torrent file
+      description: |
+        Streams the stored `.torrent` file with the creator's signature injected.
+
+        Note: the identity is read from the JSON request body, so this route needs a
+        `GET` request **with a body**. Browsers and Swagger UI cannot send bodies on
+        `GET`; use a non-browser client (curl `--request GET --data`, Go, Python).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TorrentIdentity'
+      responses:
+        '200':
+          description: Signed torrent file.
+          headers:
+            Content-Disposition:
+              description: '`attachment; filename="<info_hash>.torrent"`'
+              schema:
+                type: string
+          content:
+            application/x-bittorrent:
+              schema:
+                type: string
+                format: binary
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /torrents/sign:
+    post:
+      tags: [Signatures]
+      operationId: signTorrent
+      summary: Sign a torrent with the current user's DPKI key
+      description: |
+        Builds the signature payload for the torrent, signs it with the authenticated
+        user's decrypted private key, persists the signature and its mapping and returns
+        the refreshed torrent DTO (now containing the new signature).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TorrentIdentity'
+      responses:
+        '200':
+          description: Signature created; torrent returned with signatures expanded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TorrentDTO'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /torrents/published:
+    delete:
+      tags: [Torrents]
+      operationId: deletePublishedTorrent
+      summary: Delete a published torrent from the store
+      description: |
+        Stops the engine download, deletes the `.torrent` object from storage and deletes
+        the `torrents` row. Foreign keys cascade to `user_torrents` and
+        `torrent_signature_map`, so the torrent disappears from every user's library.
+
+        The identity is required in the request body (`DELETE` with body).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TorrentIdentity'
+      responses:
+        '200':
+          description: Published torrent deleted.
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /torrents/{info_hash}/{creator_pub_key}:
+    parameters:
+      - name: info_hash
+        in: path
+        required: true
+        description: 40-character hex info hash.
+        schema:
+          type: string
+          pattern: '^[0-9a-fA-F]{40}$'
+      - name: creator_pub_key
+        in: path
+        required: true
+        description: Creator public key as base64url without padding.
+        schema:
+          type: string
+    get:
+      tags: [Torrents]
+      operationId: getTorrentByIdentity
+      summary: Torrent metadata by identity
+      description: |
+        Returns the stored torrent record (metainfo view). `info_hash` and the raw
+        `info_bytes` blob are not part of the JSON payload.
+
+        Implementation note: the handler currently binds the identity from the JSON
+        request body, not from the path segments, so the same identity must be sent in
+        the body as well.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TorrentIdentity'
+      responses:
+        '200':
+          description: Torrent record.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TorrentEntity'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /ws/torrent/{infoHash}:
+    get:
+      tags: [WebSocket]
+      operationId: streamTorrentEvents
+      summary: 'WebSocket: events of a single torrent'
+      description: |
+        Upgrades the connection and subscribes the client to the Redis stream
+        `torrent_<infoHash>`. Every Redis entry is forwarded as one text frame whose
+        payload is a `TorrentStreamEvent`.
+      security: []
+      parameters:
+        - name: infoHash
+          in: path
+          required: true
+          description: Info hash (hex) used to build the channel name.
+          schema:
+            type: string
+      responses:
+        '101':
+          description: Protocol switched to WebSocket.
+        '400':
+          description: Connection could not be upgraded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /ws/dashboard:
+    get:
+      tags: [WebSocket]
+      operationId: streamDashboardEvents
+      summary: 'WebSocket: global progress feed'
+      description: |
+        Upgrades the connection and subscribes the client to the `global_progress`
+        channel. Payloads are `TorrentStreamEvent` messages with `event_type`
+        `torrent:progress`.
+      security: []
+      responses:
+        '101':
+          description: Protocol switched to WebSocket.
+        '400':
+          description: Connection could not be upgraded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /docs:
+    get:
+      tags: [Docs]
+      operationId: swaggerUi
+      summary: Swagger UI for this contract
+      security: []
+      responses:
+        '200':
+          description: HTML page rendering this document.
+          content:
+            text/html:
+              schema:
+                type: string
+
+  /docs/openapi.yaml:
+    get:
+      tags: [Docs]
+      operationId: getOpenApiContract
+      summary: Raw OpenAPI contract served by the application
+      security: []
+      responses:
+        '200':
+          description: OpenAPI 3.0.3 document.
+          content:
+            application/yaml:
+              schema:
+                type: string
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Access token returned by `/auth/login`, `/auth/register` and `/auth/refresh`.
+        Missing or malformed tokens are rejected by the auth middleware with
+        `401 {"error": "..."}`.
+
+  parameters:
+    UserId:
+      name: id
+      in: path
+      required: true
+      description: Numeric user id (`int64`).
+      schema:
+        type: integer
+        format: int64
+
+  responses:
+    Unauthorized:
+      description: |
+        Missing/invalid credentials. Returned by the auth middleware as
+        `{"error": "<reason>"}`.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/UnauthorizedError'
+    ValidationError:
+      description: Request body could not be decoded or failed validation.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    UserNotFound:
+      description: No user matches the supplied identifier (`USER_NOT_FOUND`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    InternalError:
+      description: Unexpected server error (`INTERNAL_ERROR`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+
+  schemas:
+    # ------------------------------------------------------------------ common
+    ApiError:
+      type: object
+      description: Standard error envelope produced by the error-handling middleware.
+      required: [status, message, errorCode]
+      properties:
+        status:
+          type: integer
+          format: int32
+          example: 400
+        message:
+          type: string
+          example: validation failed
+        errorCode:
+          type: string
+          example: VALIDATION_AGGREGATE_ERROR
+        details:
+          type: object
+          description: Field name to the list of validation messages.
+          additionalProperties:
+            type: array
+            items:
+              type: string
+
+    UnauthorizedError:
+      type: object
+      description: Body written directly by the auth middleware.
+      required: [error]
+      properties:
+        error:
+          type: string
+          example: missing authorization header
+
+    # -------------------------------------------------------------------- auth
+    AuthRegisterRequest:
+      type: object
+      required: [email, password, nickname]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+          minLength: 8
+        nickname:
+          type: string
+          pattern: '^[a-zA-Z0-9]{3,16}$'
+
+    AuthLoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+
+    RefreshTokenRequest:
+      type: object
+      required: [refresh_token]
+      properties:
+        refresh_token:
+          type: string
+
+    AuthResponse:
+      type: object
+      required: [access_token, refresh_token, user]
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        user:
+          $ref: '#/components/schemas/User'
+
+    TokensResponse:
+      type: object
+      required: [access_token, refresh_token]
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+
+    # ------------------------------------------------------------------- users
+    User:
+      type: object
+      required: [id, email, public_key, nickname, created_at]
+      properties:
+        id:
+          type: integer
+          format: int64
+        email:
+          type: string
+          format: email
+        public_key:
+          type: string
+          description: Ed25519 public key, base64url without padding.
+        nickname:
+          type: string
+        avatar_path:
+          type: string
+          description: Object-storage key of the avatar. Omitted when empty.
+        created_at:
+          type: string
+          format: date-time
+
+    UserStats:
+      type: object
+      required:
+        - total_uploaded_bytes
+        - total_downloaded_bytes
+        - reputation_score
+        - signed_torrents_count
+        - active_torrents_count
+        - peers_trusted_count
+      properties:
+        total_uploaded_bytes:
+          type: integer
+          format: int64
+        total_downloaded_bytes:
+          type: integer
+          format: int64
+        reputation_score:
+          type: number
+          format: float
+        signed_torrents_count:
+          type: integer
+          format: int32
+        active_torrents_count:
+          type: integer
+          format: int32
+        peers_trusted_count:
+          type: integer
+          format: int32
+
+    UserFull:
+      allOf:
+        - $ref: '#/components/schemas/User'
+        - type: object
+          properties:
+            role:
+              type: string
+              enum: [user, admin]
+            stats:
+              $ref: '#/components/schemas/UserStats'
+
+    UserCreateRequest:
+      type: object
+      description: |
+        The handler binds the service-layer struct `CreateUserInput`, which has no JSON
+        tags, so JSON keys are matched case-insensitively against the Go field names.
+        `PasswordHash` is required and `password_hash` is **not** accepted, while
+        `Email`/`email`, `Nickname`/`nickname` and `Role`/`role` all bind.
+      required: [Email, Nickname, PasswordHash, Role]
+      properties:
+        Email:
+          type: string
+          format: email
+        Nickname:
+          type: string
+          pattern: '^[a-zA-Z0-9]{3,16}$'
+        PasswordHash:
+          type: string
+          description: Already hashed password (stored verbatim).
+        Role:
+          type: string
+          enum: [user, admin]
+
+    UserUpdateRequest:
+      type: object
+      description: |
+        Service-layer `UpdateUserInput`; no JSON tags, so keys are matched
+        case-insensitively against the Go field names.
+      required: [Email, Nickname, PasswordHash, Role]
+      properties:
+        Email:
+          type: string
+          format: email
+        Nickname:
+          type: string
+          pattern: '^[a-zA-Z0-9]{3,16}$'
+        PasswordHash:
+          type: string
+        Role:
+          type: string
+          enum: [user, admin]
+
+    UserPatchRequest:
+      type: object
+      description: |
+        Service-layer `PatchUserFields`; only the supplied fields are updated.
+        Keys are matched case-insensitively against the Go field names.
+      properties:
+        Email:
+          type: string
+          format: email
+        Nickname:
+          type: string
+          pattern: '^[a-zA-Z0-9]{3,16}$'
+        PasswordHash:
+          type: string
+        Role:
+          type: string
+          enum: [user, admin]
+
+    # ---------------------------------------------------------------- torrents
+    TorrentStatus:
+      type: string
+      enum: [idle, downloading, seeding, paused]
+
+    TorrentIdentity:
+      type: object
+      description: Unique identity of a torrent inside the network.
+      required: [info_hash, creator_pub_key]
+      properties:
+        info_hash:
+          type: string
+          description: 40-character hex info hash.
+          pattern: '^[0-9a-fA-F]{40}$'
+        creator_pub_key:
+          type: string
+          description: Creator public key, base64url without padding.
+          example: 7yHn3sVq1mB0dK4pR9tW8xL2cZ6aF5gJ1uQ0iO3eN4A
+
+    ProgressUpdateRequest:
+      allOf:
+        - $ref: '#/components/schemas/TorrentIdentity'
+        - type: object
+          required: [progress]
+          properties:
+            progress:
+              type: number
+              format: float
+              description: Progress value stored as `decimal(5,2)`.
+
+    TorrentDTO:
+      type: object
+      description: Torrent as seen in a user's library.
+      required:
+        - info_hash
+        - creator_public_key
+        - name
+        - size_bytes
+        - storage_path
+        - status
+        - progress
+        - added_at
+        - files
+        - signatures
+      properties:
+        info_hash:
+          type: string
+          description: 40-character hex info hash.
+        creator_public_key:
+          type: string
+          description: Creator public key, base64url without padding.
+        name:
+          type: string
+        size_bytes:
+          type: integer
+          format: int64
+        storage_path:
+          type: string
+          description: Currently always empty; payloads live in object storage.
+        status:
+          $ref: '#/components/schemas/TorrentStatus'
+        progress:
+          type: number
+          format: float
+          description: Download percentage persisted in `user_torrents.progress` (0-100).
+        added_at:
+          type: string
+          format: date-time
+        files:
+          type: array
+          items:
+            $ref: '#/components/schemas/TorrentFileDTO'
+        signatures:
+          type: array
+          items:
+            $ref: '#/components/schemas/TorrentSignatureDTO'
+
+    TorrentFileDTO:
+      type: object
+      required: [path, size_bytes]
+      properties:
+        path:
+          type: string
+        size_bytes:
+          type: integer
+          format: int64
+
+    TorrentSignatureDTO:
+      type: object
+      required: [signer_public_key, signature_bytes, timestamp]
+      properties:
+        signer_public_key:
+          type: string
+          description: Signer public key, base64url without padding.
+        signature_bytes:
+          type: string
+          description: Hex-encoded signature blob.
+        timestamp:
+          type: integer
+          format: int64
+          description: Unix timestamp of the signature creation.
+
+    StoreTorrentDTO:
+      type: object
+      description: Lightweight storefront descriptor (no user-specific status).
+      required: [info_hash, creator_public_key, name, size_bytes, added_at]
+      properties:
+        info_hash:
+          type: string
+        creator_public_key:
+          type: string
+        name:
+          type: string
+        size_bytes:
+          type: integer
+          format: int64
+        added_at:
+          type: string
+          format: date-time
+
+    TorrentEntity:
+      type: object
+      description: |
+        Stored torrent record. `info_hash` and `info_bytes` carry `json:"-"` in the entity,
+        therefore they are not part of the payload.
+      required: [name, size_bytes, piece_length, is_private, storage_path, added_at]
+      properties:
+        name:
+          type: string
+        size_bytes:
+          type: integer
+          format: int64
+        piece_length:
+          type: integer
+          description: Piece size in bytes.
+        is_private:
+          type: boolean
+        storage_path:
+          type: string
+        added_at:
+          type: string
+          format: date-time
+
+    # --------------------------------------------------------------- realtime
+    TorrentStreamEvent:
+      type: object
+      description: |
+        Unified envelope pushed over WebSocket (`packet.Event` in the Go model).
+        Exactly one of `packet` / `progress` is set, matching `event_type`.
+      required: [event_type]
+      properties:
+        event_type:
+          type: string
+          enum: [packet, torrent:progress]
+        packet:
+          $ref: '#/components/schemas/PacketLog'
+        progress:
+          $ref: '#/components/schemas/ProgressLog'
+
+    ProgressLog:
+      type: object
+      required:
+        - info_hash
+        - creator_public_key
+        - progress
+        - download_speed_bps
+        - upload_speed_bps
+      properties:
+        info_hash:
+          type: string
+        creator_public_key:
+          type: string
+        progress:
+          type: number
+          format: float
+          description: Fraction reported by the engine (0.0 - 1.0).
+        download_speed_bps:
+          type: integer
+          format: int64
+        upload_speed_bps:
+          type: integer
+          format: int64
+
+    PacketLog:
+      type: object
+      required: [id, timestamp, direction, message_type]
+      properties:
+        id:
+          type: integer
+          format: int64
+        timestamp:
+          type: string
+          format: date-time
+        direction:
+          type: string
+          enum: [inbound, outbound]
+        message_type:
+          type: string
+          enum:
+            - choke
+            - unchoke
+            - interested
+            - not_interested
+            - handshake
+            - bitfield
+            - have
+            - request
+            - piece
+            - cancel
+            - reputation
+        peer_ip:
+          type: string
+        piece_index:
+          type: integer
+          format: int32
+        chunk_offset:
+          type: integer
+          format: int32
+        chunk_length:
+          type: integer
+          format: int32
+        parsed_info:
+          type: string
+        reputation_payload:
+          $ref: '#/components/schemas/ReputationReceipt'
+        size_bytes:
+          type: integer
+          format: int64
+
+    Peer:
+      type: object
+      description: |
+        Flattened `peer.Model` (Identity + Flags + State). Boolean/speed fields are
+        omitted when zero.
+      required: [peer_id, ip, ports, client_name]
+      properties:
+        peer_id:
+          type: string
+        ip:
+          type: string
+        ports:
+          type: integer
+          format: int32
+        client_name:
+          type: string
+        encryption:
+          type: boolean
+        utp:
+          type: boolean
+        dht:
+          type: boolean
+        pex:
+          type: boolean
+        supports_ut_reputation:
+          type: boolean
+        reputation_score:
+          type: number
+          format: float
+        last_seen:
+          type: string
+          format: date-time
+        connected_since:
+          type: string
+          format: date-time
+        download_speed_bps:
+          type: integer
+          format: int64
+        upload_speed_bps:
+          type: integer
+          format: int64
+
+    PeerConnectedEvent:
+      type: object
+      required: [event_type, info_hash, peer]
+      properties:
+        event_type:
+          type: string
+          enum: [peer:connected]
+        info_hash:
+          type: string
+        peer:
+          $ref: '#/components/schemas/Peer'
+
+    ReputationReceipt:
+      type: object
+      required:
+        - info_hash
+        - from_pub_key
+        - to_pub_key
+        - piece_index
+        - byte_count
+        - timestamp
+        - signature
+      properties:
+        info_hash:
+          type: string
+        from_pub_key:
+          type: string
+          format: byte
+          description: Standard base64.
+        to_pub_key:
+          type: string
+          format: byte
+          description: Standard base64.
+        piece_index:
+          type: integer
+          format: int32
+        byte_count:
+          type: integer
+          format: int64
+        timestamp:
+          type: integer
+          format: int64
+        signature:
+          type: string
+          format: byte
+          description: Standard base64.
+
+    ReputationUpdateEvent:
+      type: object
+      required: [event_type, from_pub_key, to_pub_key, new_reputation_score]
+      properties:
+        event_type:
+          type: string
+          enum: [reputation:update]
+        from_pub_key:
+          type: string
+          format: byte
+          description: Standard base64.
+        to_pub_key:
+          type: string
+          format: byte
+          description: Standard base64.
+        new_reputation_score:
+          type: number
+          format: float

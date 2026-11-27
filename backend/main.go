@@ -13,6 +13,7 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/config"
+	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/docs"
 	websocketHub "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/infrastructure/websocket"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/middleware"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/shared/auth/jwt"
@@ -43,8 +44,6 @@ func loadEnvironment() {
 	config.HandleInitError(err)
 }
 
-// buildAllowedOrigins parses the comma-separated FRONTEND_ORIGINS env var into
-// a list of CORS-allowed origins. Falls back to localhost:5173 if unset.
 func buildAllowedOrigins() []string {
 	raw := config.GetEnvOrDefault("FRONTEND_ORIGINS", "http://localhost:5173")
 	var origins []string
@@ -63,9 +62,13 @@ func setupHTTPServer() *gin.Engine {
 func registerGlobalMiddleware(engine *gin.Engine) {
 	errorRegistry := buildErrorRegistry()
 	engine.Use(middleware.ErrorHandlingMiddleware(errorRegistry))
+	engine.GET("/docs", handleDocsRedirect)
 	engine.NoRoute(handleNoRoute)
 }
 
+func handleDocsRedirect(c *gin.Context) {
+	c.Redirect(http.StatusFound, "/api/v1/swagger-ui")
+}
 func handleNoRoute(c *gin.Context) {
 	c.JSON(http.StatusNotFound, common.ApiError{
 		Status:    http.StatusNotFound,
@@ -91,6 +94,7 @@ func registerV1Routes(engine *gin.Engine, dbConn *sql.DB, redisClient *redis.Cli
 	wsHandler := websocket_handler.NewWebSocketHandler(hub)
 
 	wsHandler.RegisterRoutes(public)
+	docs.RegisterRoutes(public)
 
 }
 
