@@ -1,6 +1,7 @@
 import React from 'react';
 import type { TorrentDTO, Peer } from '@/types/model/models.ts';
 import { TorrentPeersList } from '@/features/torrents/components/TorrentDetailsModal/Tabs/TorrentPeersList/TorrentPeerList';
+import { randomIp } from '@/utils/random.ts';
 import styles from './Tabs.module.css';
 
 interface TabProps {
@@ -10,7 +11,7 @@ interface TabProps {
 const MOCK_PEERS: Peer[] = [
     {
         peer_id: 'peer_1',
-        ip: '192.168.1.100',
+        ip: randomIp(),
         port: 51413,
         client_name: 'qBittorrent/4.5.2',
         download_speed_bps: 150000,
@@ -18,7 +19,7 @@ const MOCK_PEERS: Peer[] = [
     },
     {
         peer_id: 'peer_2',
-        ip: '10.0.0.45',
+        ip: randomIp(),
         port: 6881,
         client_name: 'Transmission/3.0',
         download_speed_bps: 320000,

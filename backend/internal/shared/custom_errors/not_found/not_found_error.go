@@ -39,5 +39,3 @@ func (e *NotFoundError[T]) Code() abstract_error_code.ErrorCode {
 func (e *NotFoundError[T]) Error() string {
 	return e.message
 }
-
-func (e *NotFoundError[T]) isNotFound() {}

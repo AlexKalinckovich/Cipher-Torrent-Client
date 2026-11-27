@@ -69,6 +69,13 @@ func (e *AnacrolixEngine) StartDownload(mi *metainfo.MetaInfo, pubKey []byte) (s
 	return e.activateTorrent(t)
 }
 
+type progressState struct {
+	lastBytesRead    int64
+	lastBytesWritten int64
+	lastEventTime    time.Time
+	isFirst          bool
+}
+
 func (e *AnacrolixEngine) monitorProgressEventDriven(t *torrent.Torrent, creatorPubKey []byte) {
 	ih := t.InfoHash().HexString()
 	pubKeyBase64 := base64.RawURLEncoding.EncodeToString(creatorPubKey)
@@ -80,14 +87,11 @@ func (e *AnacrolixEngine) monitorProgressEventDriven(t *torrent.Torrent, creator
 	sub := t.SubscribePieceStateChanges()
 	defer sub.Close()
 
-	var lastBytesRead, lastBytesWritten int64
-	var lastEventTime time.Time
-	isFirst := true
-
 	throttle := time.NewTicker(2 * time.Second)
 	defer throttle.Stop()
 
-	var pendingEmit bool
+	state := &progressState{isFirst: true}
+	pendingEmit := false
 
 	for {
 		select {
@@ -105,61 +109,69 @@ func (e *AnacrolixEngine) monitorProgressEventDriven(t *torrent.Torrent, creator
 			}
 			pendingEmit = false
 
-			completedBytes := t.BytesCompleted()
-			length := t.Length()
-			info := t.Info()
-			seeders := t.Seeding()
-			peers := t.PeerConns()
-
-			log.Printf("[ENGINE] progress[%s] completed=%d length=%d seeders=%d peers=%d name=%s", ih, completedBytes, length, seeders, len(peers), func() string {
-				if info != nil {
-					return info.BestName()
-				}
-				return "(no info)"
-			}())
-
-			var progress float32
-			if length > 0 {
-				progress = float32(completedBytes) / float32(length)
-			}
-
-			var downloadSpeed, uploadSpeed int64
-			now := time.Now()
-
-			if !isFirst {
-				elapsed := now.Sub(lastEventTime).Seconds()
-				if elapsed > 0 {
-					stats := t.Stats()
-					currentRead := stats.AllConnStats.BytesReadUsefulData.Int64()
-					currentWrite := stats.AllConnStats.BytesWrittenData.Int64()
-
-					downloadSpeed = int64(float64(currentRead-lastBytesRead) / elapsed)
-					uploadSpeed = int64(float64(currentWrite-lastBytesWritten) / elapsed)
-				}
-			} else {
-				isFirst = false
-			}
-
-			stats := t.Stats()
-			lastBytesRead = stats.AllConnStats.BytesReadUsefulData.Int64()
-			lastBytesWritten = stats.AllConnStats.BytesWrittenData.Int64()
-			lastEventTime = now
-
-			evt := packet.Event{
-				Type: packet.EventTypeProgress,
-				Progress: &packet.ProgressLog{
-					InfoHash:         ih,
-					CreatorPublicKey: pubKeyBase64,
-					Progress:         progress,
-					DownloadSpeedBps: downloadSpeed,
-					UploadSpeedBps:   uploadSpeed,
-				},
-			}
-
-			e.enqueueEvent(channel, evt)
-			e.enqueueEvent("global_progress", evt)
+			e.emitProgress(t, ih, pubKeyBase64, channel, state)
 		}
 	}
+}
+
+func (e *AnacrolixEngine) emitProgress(t *torrent.Torrent, ih string, pubKeyBase64 string, channel string, state *progressState) {
+	completedBytes := t.BytesCompleted()
+	length := t.Length()
+	peers := t.PeerConns()
+
+	log.Printf("[ENGINE] progress[%s] completed=%d length=%d seeders=%t peers=%d name=%s",
+		ih, completedBytes, length, t.Seeding(), len(peers), torrentBestName(t.Info()))
+
+	downloadSpeed, uploadSpeed := state.measureSpeeds(t)
+
+	evt := packet.Event{
+		Type: packet.EventTypeProgress,
+		Progress: &packet.ProgressLog{
+			InfoHash:         ih,
+			CreatorPublicKey: pubKeyBase64,
+			Progress:         calculateProgress(completedBytes, length),
+			DownloadSpeedBps: downloadSpeed,
+			UploadSpeedBps:   uploadSpeed,
+		},
+	}
+
+	e.enqueueEvent(channel, evt)
+	e.enqueueEvent("global_progress", evt)
+}
+
+func (s *progressState) measureSpeeds(t *torrent.Torrent) (int64, int64) {
+	now := time.Now()
+	stats := t.Stats()
+	currentRead := stats.AllConnStats.BytesReadUsefulData.Int64()
+	currentWrite := stats.AllConnStats.BytesWrittenData.Int64()
+
+	var downloadSpeed, uploadSpeed int64
+	if s.isFirst {
+		s.isFirst = false
+	} else if elapsed := now.Sub(s.lastEventTime).Seconds(); elapsed > 0 {
+		downloadSpeed = int64(float64(currentRead-s.lastBytesRead) / elapsed)
+		uploadSpeed = int64(float64(currentWrite-s.lastBytesWritten) / elapsed)
+	}
+
+	s.lastBytesRead = currentRead
+	s.lastBytesWritten = currentWrite
+	s.lastEventTime = now
+
+	return downloadSpeed, uploadSpeed
+}
+
+func calculateProgress(completedBytes int64, length int64) float32 {
+	if length <= 0 {
+		return 0
+	}
+	return float32(completedBytes) / float32(length)
+}
+
+func torrentBestName(info *metainfo.Info) string {
+	if info == nil {
+		return "(no info)"
+	}
+	return info.BestName()
 }
 
 func (e *AnacrolixEngine) PauseTorrent(infoHash []byte) error {
@@ -252,13 +264,13 @@ func (e *AnacrolixEngine) publishToRedis(evt asyncEvent) {
 		return
 	}
 
-	//log.Printf("[ENGINE] Publishing to Redis | Channel: %s | Size: %d bytes", evt.Channel, len(data))
+	log.Printf("[ENGINE] Publishing to Redis | Channel: %s | Size: %d bytes", evt.Channel, len(data))
 
 	err = e.publisher.Publish(context.Background(), evt.Channel, data)
 	if err != nil {
 		log.Printf("[ENGINE] ❌ Redis Publish FAILED: %v", err)
 	} else {
-		//log.Printf("[ENGINE] ✅ Redis Publish SUCCESS")
+		log.Printf("[ENGINE] ✅ Redis Publish SUCCESS")
 	}
 }
 

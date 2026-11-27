@@ -25,9 +25,6 @@ import {
     useDeleteTorrent
 } from '@/hooks/useTorrents.ts';
 import {dashboardProgressService} from "@/api/dashboardProgressService.ts";
-const sumSize = (sum: number, t: TorrentDTO): number => {
-    return sum + t.size_bytes;
-};
 
 const countStatus = (torrents: TorrentDTO[], status: TorrentDTO['status']): number => {
     return torrents.filter((item: TorrentDTO): boolean => item.status === status).length;
@@ -39,7 +36,7 @@ const calculateStats = (torrents: TorrentDTO[]): DashboardStats => {
         downloading: countStatus(torrents, 'downloading'),
         seeding: countStatus(torrents, 'seeding'),
         paused: countStatus(torrents, 'paused'),
-        totalSize: torrents.reduce(sumSize, 0),
+        totalSize: torrents.reduce((sum, t) => sum + t.size_bytes, 0),
     };
 };
 
@@ -106,7 +103,6 @@ export const Dashboard: React.FC = () => {
         });
     }, [resumeTorrent]);
 
-    // 2. Pause Action
     const handlePauseAction = useCallback((record: TorrentDTO): void => {
         const identity: TorrentIdentity = {
             info_hash: record.info_hash,

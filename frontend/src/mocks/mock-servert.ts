@@ -2,6 +2,7 @@ import MockAdapter from 'axios-mock-adapter';
 import type { AxiosInstance } from 'axios';
 import { mockTorrents } from './torrents.mock.ts';
 import { AuthMockHandlers } from './auth.mock.ts';
+import { randomHex, randomInt } from '@/utils/random.ts';
 import type { TorrentAddResponse, SignatureCreateResponse } from '../types/model/models.ts';
 
 export class MockServer {
@@ -26,14 +27,14 @@ export class MockServer {
     private handleAddTorrent(): [number, TorrentAddResponse] {
         const response: TorrentAddResponse = {
             status: 'success',
-            info_hash: `NEW_${Math.random().toString(16).substring(2, 10).toUpperCase()}`
+            info_hash: `NEW_${randomHex(8)}`
         };
         return [200, response];
     }
 
     private handleSignTorrent(): [number, SignatureCreateResponse] {
         const response: SignatureCreateResponse = {
-            signature_id: Math.floor(Math.random() * 1000000),
+            signature_id: randomInt(1000000),
             signed_at: new Date().toISOString()
         };
         return [200, response];

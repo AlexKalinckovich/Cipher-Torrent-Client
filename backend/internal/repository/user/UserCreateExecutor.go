@@ -9,32 +9,29 @@ import (
 )
 
 type UserCreateExecutor struct {
-	ctx      context.Context
 	database *sql.DB
 	queries  *generated.Queries
 }
 
 func NewUserCreateExecutor(
-	ctx context.Context,
 	database *sql.DB,
 	queries *generated.Queries,
 ) *UserCreateExecutor {
 	return &UserCreateExecutor{
-		ctx:      ctx,
 		database: database,
 		queries:  queries,
 	}
 }
 
-func (e *UserCreateExecutor) Execute(arg generated.CreateUserParams) (generated.User, error) {
-	sqlTx, err := e.database.BeginTx(e.ctx, nil)
+func (e *UserCreateExecutor) Execute(ctx context.Context, arg generated.CreateUserParams) (generated.User, error) {
+	sqlTx, err := e.database.BeginTx(ctx, nil)
 	if err != nil {
 		return generated.User{}, err
 	}
 	defer func() { _ = sqlTx.Rollback() }()
 
 	qtx := e.queries.WithTx(sqlTx)
-	res, err := qtx.CreateUser(e.ctx, arg)
+	res, err := qtx.CreateUser(ctx, arg)
 	if err != nil {
 		return generated.User{}, err
 	}
@@ -42,7 +39,7 @@ func (e *UserCreateExecutor) Execute(arg generated.CreateUserParams) (generated.
 	if err != nil {
 		return generated.User{}, err
 	}
-	if err := qtx.CreateUserStats(e.ctx, generated.CreateUserStatsParams{UserID: id}); err != nil {
+	if err := qtx.CreateUserStats(ctx, generated.CreateUserStatsParams{UserID: id}); err != nil {
 		return generated.User{}, err
 	}
 	if err := sqlTx.Commit(); err != nil {
