@@ -13,7 +13,6 @@ export interface PickedFolder {
     handle: FileSystemDirectoryHandle | null;
 }
 
-/** True when the browser can open a directory picker at all (native or legacy). */
 export const supportsFolderPicker = (): boolean => supported;
 
 function openDB(): Promise<IDBDatabase> {
@@ -26,14 +25,11 @@ function openDB(): Promise<IDBDatabase> {
             }
         };
         request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
+        request.onerror = () => reject(request.error ?? new Error('Failed to open the download folder database'));
     });
 }
 
-/**
- * Shows the native folder picker, persists the chosen directory handle to
- * IndexedDB and returns it. Throws if the picker is unavailable or cancelled.
- */
+
 export async function pickDownloadFolder(): Promise<PickedFolder> {
     if (!supported) {
         throw new Error(
@@ -64,7 +60,7 @@ export async function pickDownloadFolder(): Promise<PickedFolder> {
         const tx = db.transaction(STORE_NAME, 'readwrite');
         tx.objectStore(STORE_NAME).put(folder);
         tx.oncomplete = () => resolve();
-        tx.onerror = () => reject(tx.error);
+        tx.onerror = () => reject(tx.error ?? new Error('Failed to save the download folder'));
     });
 
     return folder;
@@ -80,7 +76,7 @@ export async function getLastPickedFolder(): Promise<PickedFolder | null> {
                 const folders = all.result as PickedFolder[];
                 resolve(folders.length > 0 ? folders[folders.length - 1] : null);
             };
-            all.onerror = () => reject(all.error);
+            all.onerror = () => reject(all.error ?? new Error('Failed to read the download folder'));
         });
     } catch (err) {
         console.warn('[FolderPicker] Failed to read last folder:', err);

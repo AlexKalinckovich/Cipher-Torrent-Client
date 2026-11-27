@@ -10,10 +10,6 @@ export interface AddTorrentModalProps {
     onSubmit: (identity: TorrentIdentity) => void;
 }
 
-const stopPropagation = (e: React.MouseEvent): void => {
-    e.stopPropagation();
-};
-
 const AddTorrentModalComponent: React.FC<AddTorrentModalProps> = ({ isOpen, onClose, onSubmit }) => {
     const [infoHash, setInfoHash] = useState<string>('');
     const [creatorPubKey, setCreatorPubKey] = useState<string>('');
@@ -48,8 +44,9 @@ const AddTorrentModalComponent: React.FC<AddTorrentModalProps> = ({ isOpen, onCl
     }
 
     return (
-        <div className={styles.overlay} onClick={onClose}>
-            <div className={styles.modal} onClick={stopPropagation}>
+        <div className={styles.overlay}>
+            <button type="button" className={styles.backdrop} onClick={onClose} aria-label="Close dialog" />
+            <div className={styles.modal}>
                 <div className={styles.header}>
                     <h2 className={styles.title}>ADD EXISTING TORRENT</h2>
                     <button type="button" className={styles.closeBtn} onClick={onClose}>

@@ -34,10 +34,15 @@ export const PublicKeyBlock: React.FC<PublicKeyBlockProps> = ({ publicKey }) => 
         <div className={styles.infoBlock}>
             <span className={styles.infoLabel}>Public Key (Peer ID)</span>
             <div className={styles.infoValue}>
-                <div className={styles.keyContainer} onClick={toggleVisibility}>
+                <button
+                    type="button"
+                    className={styles.keyContainer}
+                    onClick={toggleVisibility}
+                    aria-pressed={isVisible}
+                >
                     <span className={displayClass}>{publicKey}</span>
                     {icon}
-                </div>
+                </button>
             </div>
         </div>
     );

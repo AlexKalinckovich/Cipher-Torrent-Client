@@ -20,18 +20,22 @@ const RecentTorrentItemComponent: React.FC<RecentTorrentItemProps> = ({ torrent,
     }, [torrent.name, onRemove]);
 
     return (
-        <div className={styles.recentItem} onClick={handleItemClick}>
-            <div className={styles.itemInfo}>
+        <div className={styles.recentItem}>
+            <button type="button" className={styles.itemInfo} onClick={handleItemClick}>
                 <span className={styles.itemName}>{torrent.name}</span>
                 <div className={styles.itemMeta}>
                     <span>{formatBytes(torrent.size_bytes)}</span>
                     <span>{torrent.status}</span>
                 </div>
-            </div>
-            <DeleteOutlined
+            </button>
+            <button
+                type="button"
                 className={styles.removeIcon}
                 onClick={handleRemoveClick}
-            />
+                aria-label={`Remove ${torrent.name}`}
+            >
+                <DeleteOutlined />
+            </button>
         </div>
     );
 };

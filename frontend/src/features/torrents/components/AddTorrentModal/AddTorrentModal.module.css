@@ -14,7 +14,16 @@
     animation: fadeIn 0.3s ease;
 }
 
+.backdrop {
+    position: absolute;
+    inset: 0;
+    border: none;
+    background: transparent;
+    cursor: default;
+}
+
 .modal {
+    position: relative;
     width: 500px;
     max-width: 90vw;
     background: rgba(20, 10, 30, 0.9);
@@ -143,6 +152,9 @@
     border: 1px dashed rgba(124, 58, 237, 0.4);
     border-radius: 8px;
     padding: 32px;
+    width: 100%;
+    color: inherit;
+    font-family: inherit;
     cursor: pointer;
     transition: all 0.3s ease;
     text-align: center;

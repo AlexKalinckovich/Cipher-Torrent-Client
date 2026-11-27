@@ -34,7 +34,7 @@ export const OtherUserProfile: React.FC = () => {
             }
         };
 
-        fetchUserProfile();
+        void fetchUserProfile();
     }, [publicKey]);
 
     if (isLoading) {
@@ -49,7 +49,7 @@ export const OtherUserProfile: React.FC = () => {
         return (
             <div className={styles.pageContainer}>
                 <Alert
-                    message="Error"
+                    title="Error"
                     description={error || 'User not found'}
                     type="error"
                     showIcon

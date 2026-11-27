@@ -39,7 +39,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             }
             setIsLoading(false);
         };
-        initializeAuth();
+        void initializeAuth();
     }, []);
 
     const login = async (req: AuthLoginRequest) => {

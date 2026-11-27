@@ -14,7 +14,16 @@
     animation: fadeIn 0.3s ease;
 }
 
+.backdrop {
+    position: absolute;
+    inset: 0;
+    border: none;
+    background: transparent;
+    cursor: default;
+}
+
 .modal {
+    position: relative;
     width: 700px;
     max-width: 90vw;
     background: rgba(20, 10, 30, 0.9);

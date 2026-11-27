@@ -36,7 +36,7 @@ export const Storefront: React.FC = () => {
     const [pickingFolder, setPickingFolder] = React.useState<boolean>(false);
 
     React.useEffect(() => {
-        void getLastPickedFolder().then((folder) => {
+        void getLastPickedFolder().then((folder: PickedFolder | null) => {
             if (folder) {
                 setDownloadFolder(folder);
             }
@@ -71,7 +71,7 @@ export const Storefront: React.FC = () => {
     const handleChooseFolder = useCallback(async (): Promise<void> => {
         setPickingFolder(true);
         try {
-            const folder = await pickDownloadFolder();
+            const folder: PickedFolder = await pickDownloadFolder();
             setDownloadFolder(folder);
             void message.success(`Download folder set to "${folder.name}"`);
         } catch (err) {
