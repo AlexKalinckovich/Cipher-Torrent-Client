@@ -23,8 +23,8 @@ func NewUserRepository(database *sql.DB, queries *generated.Queries) *UserReposi
 }
 
 func (r *UserRepository) Create(ctx context.Context, arg generated.CreateUserParams) (generated.User, error) {
-	executor := NewUserCreateExecutor(ctx, r.database, r.queries)
-	res, err := executor.Execute(arg)
+	executor := NewUserCreateExecutor(r.database, r.queries)
+	res, err := executor.Execute(ctx, arg)
 	return translateResult(res, err, r.translator)
 }
 

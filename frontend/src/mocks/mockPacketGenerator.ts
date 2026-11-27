@@ -1,4 +1,5 @@
 import type { PacketEvent, PacketLog, PacketDirection, ReputationReceipt } from '@/types/model/models.ts';
+import { randomFloat, randomHex, randomInt, randomIp } from '@/utils/random.ts';
 
 export type PacketCallback = (event: PacketEvent) => void;
 
@@ -60,19 +61,19 @@ export class MockPacketGenerator {
     }
 
     private createRandomReputationReceipt(): ReputationReceipt {
-        const randomHex: string = Math.random().toString(16).substring(2, 10).toUpperCase();
+        const hex: string = randomHex(8);
         return {
-            from_peer_id: `Peer_TX_${randomHex}`,
-            to_peer_id: `Peer_RX_${randomHex}`,
-            piece_index: Math.floor(Math.random() * 2000),
-            byte_count: Math.floor(Math.random() * 65536) + 1024,
-            signature: `ED25519_SIG_AB${Math.random().toString(36).substring(2, 15).toUpperCase()}F9`,
+            from_peer_id: `Peer_TX_${hex}`,
+            to_peer_id: `Peer_RX_${hex}`,
+            piece_index: randomInt(2000),
+            byte_count: randomInt(65536) + 1024,
+            signature: `ED25519_SIG_AB${randomHex(13)}F9`,
             timestamp: new Date().toISOString()
         };
     }
 
     private getRandomDirection(): PacketDirection {
-        if (Math.random() > 0.5) {
+        if (randomFloat() > 0.5) {
             return 'incoming';
         }
         return 'outgoing';
@@ -80,19 +81,15 @@ export class MockPacketGenerator {
 
     private getRandomMessageType(): string {
         const types: string[] = ['handshake', 'choke', 'unchoke', 'interested', 'request', 'piece', 'ut_reputation'];
-        const index: number = Math.floor(Math.random() * types.length);
+        const index: number = randomInt(types.length);
         return types[index];
     }
 
     private getRandomIp(): string {
-        const p1: number = Math.floor(Math.random() * 255);
-        const p2: number = Math.floor(Math.random() * 255);
-        const p3: number = Math.floor(Math.random() * 255);
-        const p4: number = Math.floor(Math.random() * 255);
-        return `${p1}.${p2}.${p3}.${p4}`;
+        return randomIp();
     }
 
     private getRandomSize(): number {
-        return Math.floor(Math.random() * 1500) + 40;
+        return randomInt(1500) + 40;
     }
 }

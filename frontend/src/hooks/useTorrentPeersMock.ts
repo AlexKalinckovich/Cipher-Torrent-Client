@@ -1,12 +1,13 @@
 import { useMemo } from 'react';
 import type { Peer } from '@/types/model/models.ts';
+import { randomIp } from '@/utils/random.ts';
 
 const generateMockPeers = (infoHash: string): Peer[] => {
     const now: number = Date.now();
     return [
         {
             peer_id: `${infoHash.substring(0, 5)}_Client_A`,
-            ip: '192.168.1.45',
+            ip: randomIp(),
             port: 45901,
             client_name: 'qBittorrent/4.3.9',
             supports_ut_reputation: true,
@@ -19,7 +20,7 @@ const generateMockPeers = (infoHash: string): Peer[] => {
         },
         {
             peer_id: `${infoHash.substring(0, 5)}_Client_B`,
-            ip: '88.213.45.12',
+            ip: randomIp(),
             port: 51413,
             client_name: 'Transmission/3.00',
             supports_ut_reputation: false,
@@ -32,7 +33,7 @@ const generateMockPeers = (infoHash: string): Peer[] => {
         },
         {
             peer_id: `${infoHash.substring(0, 5)}_Client_C`,
-            ip: '104.22.14.99',
+            ip: randomIp(),
             port: 6881,
             client_name: 'Deluge/2.0.3',
             supports_ut_reputation: true,

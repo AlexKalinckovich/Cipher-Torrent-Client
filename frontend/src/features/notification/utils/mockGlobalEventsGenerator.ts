@@ -1,18 +1,11 @@
 import type { PeerConnectedEvent, ReputationUpdateEvent } from '@/types/model/models.ts';
+import { randomFloat, randomHex, randomInt, randomIp } from '@/utils/random.ts';
 
 export type GlobalEvent = PeerConnectedEvent | ReputationUpdateEvent;
 export type GlobalEventCallback = (event: GlobalEvent) => void;
 
-const generateRandomIp = (): string => {
-    const p1: number = Math.floor(Math.random() * 255);
-    const p2: number = Math.floor(Math.random() * 255);
-    const p3: number = Math.floor(Math.random() * 255);
-    const p4: number = Math.floor(Math.random() * 255);
-    return `${p1}.${p2}.${p3}.${p4}`;
-};
-
 const generateRandomHex = (): string => {
-    return Math.random().toString(16).substring(2, 10).toUpperCase();
+    return randomHex(8);
 };
 
 export class MockGlobalEventsGenerator {
@@ -37,7 +30,7 @@ export class MockGlobalEventsGenerator {
     }
 
     private emitEvent(): void {
-        const isPeerEvent: boolean = Math.random() > 0.5;
+        const isPeerEvent: boolean = randomFloat() > 0.5;
         if (isPeerEvent) {
             this.callback(this.createPeerEvent());
             return;
@@ -52,11 +45,11 @@ export class MockGlobalEventsGenerator {
             info_hash: `INFO_${generateRandomHex()}`,
             peer: {
                 peer_id: `Peer_ID_${generateRandomHex()}`,
-                ip: generateRandomIp(),
-                port: Math.floor(Math.random() * 50000) + 10000,
+                ip: randomIp(),
+                port: randomInt(50000) + 10000,
                 client_name: 'CipherNode/1.0',
                 supports_ut_reputation: true,
-                reputation_score: Math.random(),
+                reputation_score: randomFloat(),
                 flags: { encryption: true, utp: true, dht: true, pex: true },
                 connected_since: new Date(now).toISOString(),
                 last_seen: new Date(now).toISOString(),
@@ -71,7 +64,7 @@ export class MockGlobalEventsGenerator {
             event_type: 'reputation:update',
             from_peer_id: `Peer_TX_${generateRandomHex()}`,
             to_peer_id: `Peer_RX_${generateRandomHex()}`,
-            new_reputation_score: Math.random()
+            new_reputation_score: randomFloat()
         };
     }
 }
