@@ -18,7 +18,6 @@ type UserTorrentIdentity struct {
 	CreatorPubKey []byte
 }
 
-// CreateTorrentRequest represents a request to create a new torrent
 type CreateTorrentRequest struct {
 	File             multipart.File
 	UserID           int64

@@ -17,7 +17,7 @@ import styles from './Storefront.module.css';
 
 interface PreparedTorrent {
     torrent: StoreTorrent;
-    searchText: string; // precomputed lowercase searchable text
+    searchText: string; 
     isOwn: boolean;
 }
 
@@ -35,8 +35,6 @@ export const Storefront: React.FC = () => {
     const [downloadFolder, setDownloadFolder] = React.useState<PickedFolder | null>(null);
     const [pickingFolder, setPickingFolder] = React.useState<boolean>(false);
 
-    // Restore the last chosen download folder so users don't have to re-pick
-    // every time they download a torrent.
     React.useEffect(() => {
         void getLastPickedFolder().then((folder) => {
             if (folder) {
@@ -45,12 +43,12 @@ export const Storefront: React.FC = () => {
         });
     }, []);
 
-    // Search state: input is urgent, list renders from the deferred value.
+    
     const [query, setQuery] = useState('');
     const deferredQuery = useDeferredValue(query);
     const isStale = query !== deferredQuery;
 
-    // Precompute searchable text ONCE when data loads (cheap per render afterward).
+    
     const prepared = useMemo<PreparedTorrent[]>(() => {
         const items = data ?? [];
         return items.map((torrent) => ({
@@ -60,7 +58,7 @@ export const Storefront: React.FC = () => {
         }));
     }, [data, user?.public_key]);
 
-    // Filtering runs against the DEFERRED query -> interruptible, doesn't block typing.
+    
     const results = useMemo<PreparedTorrent[]>(() => {
         const q = deferredQuery.trim().toLowerCase();
         if (!q) {
@@ -69,7 +67,7 @@ export const Storefront: React.FC = () => {
         return prepared.filter((it) => it.searchText.includes(q));
     }, [prepared, deferredQuery]);
 
-    // Choose (or re-choose) the folder where downloads will be stored.
+    
     const handleChooseFolder = useCallback(async (): Promise<void> => {
         setPickingFolder(true);
         try {
@@ -78,7 +76,7 @@ export const Storefront: React.FC = () => {
             void message.success(`Download folder set to "${folder.name}"`);
         } catch (err) {
             if (err instanceof DOMException && err.name === 'AbortError') {
-                return; // user cancelled the picker, not an error
+                return; 
             }
             const errorMessage = err instanceof Error ? err.message : 'Unknown error';
             void message.error(`Failed to choose folder: ${errorMessage}`);
@@ -93,9 +91,9 @@ export const Storefront: React.FC = () => {
             creator_pub_key: torrent.creator_public_key,
         };
 
-        // If no folder has been chosen yet, ask the user to pick one first.
-        // The chosen folder (a persisted FileSystemDirectoryHandle) is what the
-        // client will later write the downloaded files into.
+        
+        
+        
         if (!downloadFolder) {
             void message.info('Please choose a download folder first');
             void handleChooseFolder();
@@ -115,8 +113,8 @@ export const Storefront: React.FC = () => {
         });
     }, [addTorrent, navigate, downloadFolder, handleChooseFolder]);
 
-    // Delete a torrent the current user published: removes the MinIO object and
-    // the torrents row (cascades to all users' libraries). Only shown for own torrents.
+    
+    
     const handleDelete = useCallback((torrent: StoreTorrent): void => {
         const identity: TorrentIdentity = {
             info_hash: torrent.info_hash,
@@ -136,8 +134,8 @@ export const Storefront: React.FC = () => {
         });
     }, [deletePublished]);
 
-    // Upload the user's own torrent: POST /create (sets the authenticated user as
-    // creator), then POST /sign to automatically sign it with the uploader's keys.
+    
+    
     const handleUpload = useCallback(async (file: File): Promise<void> => {
         try {
             const created: TorrentDTO = await createTorrent(file);
