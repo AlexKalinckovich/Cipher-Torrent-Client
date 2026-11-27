@@ -23,10 +23,6 @@ const TAB_COMPONENTS: Record<TabKey, React.FC<TabProps>> = {
     signatures: SignaturesTab
 };
 
-const stopPropagation = (e: React.MouseEvent): void => {
-    e.stopPropagation();
-};
-
 const getTabClass = (current: TabKey, active: TabKey): string => {
     if (current === active) {
         return `${styles.tabBtn} ${styles.tabBtnActive}`;
@@ -48,8 +44,9 @@ const TorrentDetailsModalComponent: React.FC<TorrentDetailsModalProps> = ({ torr
     const ActiveComponent = TAB_COMPONENTS[activeTab];
 
     return (
-        <div className={styles.overlay} onClick={onClose}>
-            <div className={styles.modal} onClick={stopPropagation}>
+        <div className={styles.overlay}>
+            <button type="button" className={styles.backdrop} onClick={onClose} aria-label="Close dialog" />
+            <div className={styles.modal}>
                 <div className={styles.header}>
                     <div className={styles.titleBlock}>
                         <h2 className={styles.title}>{torrent.name}</h2>

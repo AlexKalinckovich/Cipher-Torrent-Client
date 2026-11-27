@@ -13,7 +13,7 @@ const getByteIndex = (bytes: number): number => {
 };
 
 const buildByteString = (bytes: number, index: number): string => {
-    const value = parseFloat((bytes / Math.pow(KILOBYTE, index)).toFixed(FLOAT_NUMBER_COUNT));
+    const value = Number.parseFloat((bytes / Math.pow(KILOBYTE, index)).toFixed(FLOAT_NUMBER_COUNT));
     return `${value} ${BYTE_SIZES[index]}`;
 };
 

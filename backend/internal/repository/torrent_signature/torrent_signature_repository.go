@@ -6,7 +6,6 @@ import (
 	"errors"
 	repositoryErrors "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/repository/torrent_signature/torrent_signature_repository_errors"
 	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/repository/torrent_signature/torrent_signature_repository_ports"
-	"github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/repository/tx"
 	generated "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/internal/service/torrent/generated"
 	torrentSignatureModel "github.com/AlexKalinckovich/Cipher-Torrent-Client/backend/model/torrent_signature"
 	"github.com/go-sql-driver/mysql"
@@ -48,47 +47,25 @@ func (r *TorrentSignatureRepository) CreateInTransaction(
 	if err != nil {
 		return err
 	}
-	rollbacker := tx.NewRollbacker(sqlTx)
+	defer func() { _ = sqlTx.Rollback() }()
+
 	queries := r.queries.WithTx(sqlTx)
-	return r.executeCreateInTx(ctx, queries, rollbacker, sigEntity, mapReq)
-}
-
-func (r *TorrentSignatureRepository) executeCreateInTx(
-	ctx context.Context,
-	queries *generated.Queries,
-	rollbacker *tx.Rollbacker,
-	sigEntity torrentSignatureModel.TorrentSignatureEntity,
-	mapReq torrent_signature_repository_ports.CreateSignatureMapRequest,
-) error {
-	sigParams := r.mapToCreateSignatureParams(sigEntity)
-
-	result, err := queries.CreateSignature(ctx, sigParams)
+	result, err := queries.CreateSignature(ctx, r.mapToCreateSignatureParams(sigEntity))
 	if err != nil {
-		return rollbacker.Rollback(r.translateCreateError(err))
+		return r.translateCreateError(err)
 	}
 
 	sigID, err := result.LastInsertId()
 	if err != nil {
-		return rollbacker.Rollback(err)
+		return err
 	}
 
 	mapReq.SignatureID = sigID
-
-	mapParams := r.mapToCreateSignatureMapParams(mapReq)
-	_, err = queries.CreateSignatureMap(ctx, mapParams)
-	if err != nil {
-		return rollbacker.Rollback(r.translateCreateError(err))
+	if _, err := queries.CreateSignatureMap(ctx, r.mapToCreateSignatureMapParams(mapReq)); err != nil {
+		return r.translateCreateError(err)
 	}
 
-	return r.commitTx(rollbacker)
-}
-
-func (r *TorrentSignatureRepository) commitTx(rollbacker *tx.Rollbacker) error {
-	err := rollbacker.Tx.Commit()
-	if err != nil {
-		return rollbacker.Rollback(err)
-	}
-	return nil
+	return sqlTx.Commit()
 }
 
 func (r *TorrentSignatureRepository) GetSignaturesForInjection(ctx context.Context, req torrent_signature_repository_ports.TorrentIdentityRepositoryRequest) ([]torrent_signature_repository_ports.SignatureInjectionDTO, error) {

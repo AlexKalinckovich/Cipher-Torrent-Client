@@ -37,7 +37,7 @@ const PacketRowComponent: React.FC<PacketRowProps> = ({ packet, isSelected, onSe
     const pieceInfo = packet.piece_index !== undefined ? ` | Piece: ${packet.piece_index}` : '';
 
     return (
-        <div className={getRowClass(isSelected)} onClick={handleClick}>
+        <button type="button" className={getRowClass(isSelected)} onClick={handleClick}>
             <span className={styles.timestamp}>{formatTime(packet.timestamp)}</span>
             <span className={`${styles.direction} ${getDirectionClass(packet.direction)}`}>
                 {getDirectionIcon(packet.direction)}
@@ -45,7 +45,7 @@ const PacketRowComponent: React.FC<PacketRowProps> = ({ packet, isSelected, onSe
             <span className={styles.ip}>{packet.peer_ip ?? 'SYSTEM'}</span>
             <span className={styles.type}>{packet.message_type}{pieceInfo}</span>
             <span className={styles.size}>{packet.size_bytes ?? 0} B</span>
-        </div>
+        </button>
     );
 };
 

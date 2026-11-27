@@ -133,8 +133,6 @@ func (s *Service) getUserPublicKey(ctx context.Context, userID int64) ([]byte, e
 }
 
 func (s *Service) Add(ctx context.Context, req service_ports.AddTorrentServiceRequest) error {
-	// The store DTO carries the ORIGINAL creator's key. The .torrent lives in
-	// MinIO under that creator's key (uploaded when the creator did /create).
 	storageIdentityRequest := storage_ports.StorageIdentityRequest{
 		InfoHash:      req.InfoHash,
 		CreatorPubKey: req.CreatorPubKey,

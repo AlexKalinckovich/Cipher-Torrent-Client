@@ -26,19 +26,19 @@ const FileTabComponent: React.FC<FileTabProps> = ({ fileName, onFileSelect }) =>
     return (
         <div className={styles.inputGroup}>
             <span className={styles.label}>TORRENT FILE</span>
-            <div className={styles.fileInputContainer} onClick={handleClick}>
-                <input
-                    type="file"
-                    accept=".torrent"
-                    className={styles.hiddenInput}
-                    ref={inputRef}
-                    onChange={handleFileChange}
-                />
+            <input
+                type="file"
+                accept=".torrent"
+                className={styles.hiddenInput}
+                ref={inputRef}
+                onChange={handleFileChange}
+            />
+            <button type="button" className={styles.fileInputContainer} onClick={handleClick}>
                 <span className={styles.fileInputText}>
                     <UploadOutlined style={{ marginRight: 8 }} />
                     {fileName ?? 'CLICK TO SELECT .TORRENT FILE'}
                 </span>
-            </div>
+            </button>
         </div>
     );
 };

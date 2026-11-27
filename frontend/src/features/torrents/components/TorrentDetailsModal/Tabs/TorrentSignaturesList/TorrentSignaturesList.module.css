@@ -58,6 +58,15 @@
     text-shadow: 0 0 8px rgba(167, 139, 250, 0.5);
 }
 
+.keyValueLink {
+    align-self: flex-start;
+    padding: 0;
+    border: none;
+    background: none;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
 .dateBlock {
     color: #6b7280;
     font-size: 12px;

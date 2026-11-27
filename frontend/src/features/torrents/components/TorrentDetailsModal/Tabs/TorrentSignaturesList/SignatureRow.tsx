@@ -29,14 +29,14 @@ const SignatureRowComponent: React.FC<SignatureRowProps> = ({ signature }) => {
         <div className={styles.row}>
             <div className={styles.keyBlock}>
                 <span className={styles.keyLabel}>SIGNER PUBLIC KEY</span>
-                <span
-                    className={styles.keyValue}
+                <button
+                    type="button"
+                    className={`${styles.keyValue} ${styles.keyValueLink}`}
                     onClick={handleViewProfile}
-                    style={{ cursor: 'pointer', textDecoration: 'underline' }}
                     title="View user profile"
                 >
                     {formatShortKey(signature.signer_public_key)}
-                </span>
+                </button>
             </div>
             <div className={styles.dateBlock}>
                 {formatDate(signature.timestamp)}
